@@ -122,7 +122,9 @@ public class UsersJava implements Users {
             }
             contentClientFactory.removeAllUserVotes(userId, password);
             contentClientFactory.updatePostOwner(userId, password);
-            imageClientFactory.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
+            if (user.getAvatarUrl() != null) {
+                imageClientFactory.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
+            }
 
             hibernate.delete(user);
         } catch (Exception e) {

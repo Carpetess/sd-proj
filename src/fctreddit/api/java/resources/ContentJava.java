@@ -11,6 +11,7 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.util.Content.VoteType;
 import fctreddit.api.server.persistence.Hibernate;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -116,12 +117,12 @@ public class ContentJava implements Content {
         try {
             oldPost = hibernate.get(Post.class, postId);
 
-            if (oldPost == null){
+            if (oldPost == null) {
                 Log.severe("Post " + postId + " not found");
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             }
 
-            List<Post> comments= hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
+            List<Post> comments = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
             int commentCount = comments.size();
             if (!canEdit(post, oldPost, commentCount))
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
@@ -156,10 +157,7 @@ public class ContentJava implements Content {
             List<Post> toDelete = deletePostHelper(postId);
             toDelete.add(post);
             Log.info("Deleting " + toDelete.size() + " posts");
-            for (Post p : toDelete) {
-                hibernate.delete(p);
-            }
-
+            hibernate.deleteAll(toDelete);
             if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseImageId(post.getMediaUrl()), userPassword);
 
@@ -213,7 +211,7 @@ public class ContentJava implements Content {
         try {
             Vote vote = voteRes.value();
             if (vote == null)
-                hibernate.persist(new Vote(post.getPostId(), userId, voteType));
+                hibernate.persist(new Vote(userId, post.getPostId(), voteType));
             else {
                 vote.setVoteType(voteType);
                 hibernate.update(vote);
@@ -331,14 +329,16 @@ public class ContentJava implements Content {
 
     @Override
     public Result<Void> updatePostOwner(String userId, String password) {
+        Log.info("Updating owner for user " + userId + "'s posts");
         Result<User> res = getUser(userId, password);
         if (!res.isOK())
             return Result.error(res.error());
-
-        List<Post> posts;
         try {
-            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.authorId = '" + userId + "'", Post.class);
-            hibernate.update(posts);
+            List<Post> posts = hibernate.jpql("SELECT p FROM Post p WHERE p.authorId LIKE '" + userId + "'", Post.class);
+            for (Post post : posts) {
+                post.setAuthorId(null);
+            }
+            hibernate.updateAll(posts);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -348,14 +348,14 @@ public class ContentJava implements Content {
 
     @Override
     public Result<Void> removeAllUserVotes(String userId, String password) {
+        Log.info("Removing all votes for user " + userId);
         Result<User> res = getUser(userId, password);
         if (!res.isOK())
             return Result.error(res.error());
         try {
-            List<Vote> votes = hibernate.sql("DELETE FROM Vote WHERE voterId='" + userId + "'", Vote.class);
-            for (Vote vote : votes) {
-                hibernate.delete(vote);
-            }
+            List<Vote> vote = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
+
+            hibernate.deleteAll(vote);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -376,7 +376,7 @@ public class ContentJava implements Content {
 
     private Result<Vote> getVote(String postId, String userId) {
         try {
-            VoteId voteId = new VoteId(postId, userId);
+            VoteId voteId = new VoteId(userId, postId);
             Vote vote = hibernate.get(Vote.class, voteId);
             return Result.ok(vote);
         } catch (Exception e) {
@@ -394,12 +394,14 @@ public class ContentJava implements Content {
         return (post.getAuthorId() == null || post.getAuthorId().isBlank())
                 && commentCount == 0;
     }
-    private void update (Post newPost, Post oldPost) {
-        if (newPost.getContent() != null )
+
+    private void update(Post newPost, Post oldPost) {
+        if (newPost.getContent() != null)
             oldPost.setContent(newPost.getContent());
         if (newPost.getMediaUrl() != null)
             oldPost.setMediaUrl(newPost.getMediaUrl());
     }
+
     private String parseImageId(String url) {
         String[] slice = url.split("/");
         String imageId = slice[slice.length - 1];

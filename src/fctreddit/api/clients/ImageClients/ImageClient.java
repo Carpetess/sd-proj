@@ -12,5 +12,5 @@ public abstract class ImageClient {
      * @return NO_CONTENT if the image was deleted successfully, FORBIDDEN if the password of that user did not match and
      * NOT_FOUND if the user or the image didn't exist.
      */
-    abstract public Result<Void> deleteImage(String userId, String password, String imageId);
+    abstract public Result<Void> deleteImage(String userId, String imageId, String password);
 }

@@ -248,6 +248,6 @@ public interface RestContent {
 	 */
 	@DELETE
 	@Path("{" + USERID + "}/posts" )
-	public Void updatePostOwner(@PathParam(USERID) String authorID, String password);
+	public Void updatePostOwner(@PathParam(USERID) String authorID, @QueryParam(PASSWORD) String password);
 
 }

@@ -32,7 +32,7 @@ public class ImageClientFactory {
         Result<ImageClient> client = getClient();
         if (!client.isOK())
             return Result.error(client.error());
-        return client.value().deleteImage(userId, password, imageId);
+        return client.value().deleteImage(userId, imageId, password);
     }
 
 

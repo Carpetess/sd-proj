@@ -3,6 +3,7 @@ package fctreddit.api.server.persistence;
 import java.io.File;
 import java.util.List;
 
+import fctreddit.api.java.Result;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
@@ -109,6 +110,29 @@ public class Hibernate {
         }
     }
 
+    public void deleteAll(List<?> objects) {
+        Transaction tx = null;
+        try(var session = sessionFactory.openSession()) {
+            tx = session.beginTransaction();
+            for( var o : objects )
+                session.remove(o);
+            tx.commit();
+        } catch (Exception e) {
+            if (tx!=null) tx.rollback();
+        }
+    }
+
+    public void updateAll(List<?> objects) {
+        Transaction tx = null;
+        try(var session = sessionFactory.openSession()) {
+            tx = session.beginTransaction();
+            for( var o : objects )
+                session.merge(o);
+            tx.commit();
+        }
+    }
+
+
     /**
      * Performs a jpql Hibernate query (SQL dialect)
      * @param <T> The type of objects returned by the query
@@ -140,6 +164,21 @@ public class Hibernate {
         } catch (Exception e) {
             throw e;
         }
+    }
+
+
+
+    public void executeSQL (String sqlStatement) {
+        Transaction tx = null;
+            try (var session = sessionFactory.openSession()) {
+                tx = session.beginTransaction();
+                var query = session.createNativeQuery(sqlStatement);
+                query.executeUpdate();
+                tx.commit();
+            } catch (Exception e) {
+                throw e;
+
+            }
     }
 
 }
