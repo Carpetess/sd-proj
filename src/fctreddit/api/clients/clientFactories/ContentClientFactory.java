@@ -36,11 +36,12 @@ public class ContentClientFactory {
         return client.value().removeAllUserVotes(userId, password);
     }
 
-    public Result<Void> updatePostOwner(String authorId, String password) {
+    public Result<Void> updatePostOwner(String userId, String password) {
         Result<ContentClient> client = getClient();
+
         if (!client.isOK())
             return Result.error(client.error());
-        return client.value().updatePostOwner(authorId, password);
+        return client.value().updatePostOwner(userId, password);
     }
 
 

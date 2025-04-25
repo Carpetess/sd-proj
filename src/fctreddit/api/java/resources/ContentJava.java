@@ -354,7 +354,19 @@ public class ContentJava implements Content {
             return Result.error(res.error());
         try {
             List<Vote> vote = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
-
+            for(Vote vote1 : vote) {
+                Post post=null;
+                if(vote1.getVoteType() == VoteType.UPVOTE) {
+                    post = hibernate.get(Post.class, vote1.getPostId());
+                    post.setUpVote(post.getUpVote() - 1);
+                }
+                if(vote1.getVoteType() == VoteType.DOWNVOTE) {
+                    post = hibernate.get(Post.class, vote1.getPostId());
+                    post.setDownVote(post.getDownVote() - 1);
+                }
+                if(post!=null)
+                hibernate.update(post);
+            }
             hibernate.deleteAll(vote);
         } catch (Exception e) {
             Log.severe(e.toString());
