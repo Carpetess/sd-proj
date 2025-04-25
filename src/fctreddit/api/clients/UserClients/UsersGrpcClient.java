@@ -48,7 +48,9 @@ public class UsersGrpcClient extends UsersClient {
     public Result<User> getUser(String userId, String password) {
         try {
             UsersProtoBuf.GetUserResult res = stub.getUser(UsersProtoBuf.GetUserArgs.newBuilder()
-                    .setUserId(userId).setPassword(password).build());
+                    .setUserId(userId)
+                    .setPassword(password)
+                    .build());
             return Result.ok(DataModelAdaptor.GrpcUser_to_User(res.getUser()) );
         } catch (StatusRuntimeException sre) {
             return Result.error(statusToErrorCode(sre.getStatus()));
