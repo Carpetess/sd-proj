@@ -15,7 +15,7 @@ import java.net.URI;
 import static fctreddit.api.util.ErrorParser.errorCodeToThrowable;
 
 public class GrpcImageServerStub implements ImageGrpc.AsyncService, BindableService {
-    private ImageJava impl = new ImageJava();
+    private final ImageJava impl = new ImageJava();
 
     @Override
     public ServerServiceDefinition bindService() {

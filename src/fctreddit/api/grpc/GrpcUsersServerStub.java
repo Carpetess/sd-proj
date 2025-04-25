@@ -16,7 +16,7 @@ import static fctreddit.api.util.ErrorParser.errorCodeToThrowable;
 
 
 public class GrpcUsersServerStub implements UsersGrpc.AsyncService, BindableService {
-    Users impl = new UsersJava();
+    private final Users impl = new UsersJava();
 
 
     @Override

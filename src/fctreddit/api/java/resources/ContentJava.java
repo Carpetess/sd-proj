@@ -40,11 +40,13 @@ public class ContentJava implements Content {
             return Result.error(user.error());
 
         try {
-            if (post.getParentUrl() != null) {
+            if (post.getParentUrl() != null||!post.getParentUrl().isBlank()) {
                 String[] slice = post.getParentUrl().split("/");
                 String postId = slice[slice.length - 1];
-                if (hibernate.get(Post.class, postId) == null)
+                if (hibernate.get(Post.class, postId) == null) {
+
                     return Result.error(Result.ErrorCode.NOT_FOUND);
+                }
             }
             hibernate.persist(post);
         } catch (Exception e) {

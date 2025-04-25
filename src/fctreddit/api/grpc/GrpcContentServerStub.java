@@ -24,8 +24,9 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
     @Override
     public void createPost(ContentProtoBuf.CreatePostArgs request, StreamObserver<ContentProtoBuf.CreatePostResult> responseObserver) {
         Result<String> res = impl.createPost(DataModelAdaptor.GrpcPost_to_Post(request.getPost()), request.getPassword());
-        if(!res.isOK())
+        if(!res.isOK()) {
             responseObserver.onError(errorCodeToThrowable(res.error()));
+        }
         responseObserver.onNext(ContentProtoBuf.CreatePostResult.newBuilder().setPostId(res.value()).build());
         responseObserver.onCompleted();
     }
