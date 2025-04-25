@@ -352,7 +352,7 @@ public class ContentJava implements Content {
         if (!res.isOK())
             return Result.error(res.error());
         try {
-            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId = '" + userId + "'", Vote.class);
+            List<Vote> votes = hibernate.sql("DELETE FROM Vote WHERE voterId='" + userId + "'", Vote.class);
             for (Vote vote : votes) {
                 hibernate.delete(vote);
             }
