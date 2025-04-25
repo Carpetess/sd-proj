@@ -108,11 +108,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
         Result<List<String>> res = impl.getPosts(request.getTimestamp(), request.getSortOrder());
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
-        int i = 0;
-        for(String p : res.value()){
-            responseObserver.onNext(ContentProtoBuf.GetPostsResult.newBuilder().setPostId(i, p).build());
-            i++;
-        }
+        responseObserver.onNext(ContentProtoBuf.GetPostsResult.newBuilder().addAllPostId(res.value()).build());
         responseObserver.onCompleted();
     }
 
@@ -121,11 +117,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
         Result<List<String>> res = impl.getPostAnswers(request.getPostId(), request.getTimeout());
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
-        int i = 0;
-        for (String p : res.value()) {
-            responseObserver.onNext(ContentProtoBuf.GetPostsResult.newBuilder().setPostId(i, p).build());
-            i++;
-        }
+        responseObserver.onNext(ContentProtoBuf.GetPostsResult.newBuilder().addAllPostId(res.value()).build());
         responseObserver.onCompleted();
     }
 
@@ -136,6 +128,27 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(DataModelAdaptor.Post_to_GrpcPost(res.value()));
     }
+
+    @Override
+    public void removeAllUserVotes(ContentProtoBuf.RemoveAllUserVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
+        Result<Void> res = impl.removeAllUserVotes(request.getUserId(), request.getPassword());
+        if(!res.isOK())
+            responseObserver.onError(errorCodeToThrowable(res.error()));
+        responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void updatePostOwner(ContentProtoBuf.UpdatePostOwnerArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
+        Result<Void> res = impl.updatePostOwner(request.getUserId(), request.getPassword());
+        if(!res.isOK())
+            responseObserver.onError(errorCodeToThrowable(res.error()));
+        responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
+
+    }
+
+
+
 
 
 }
