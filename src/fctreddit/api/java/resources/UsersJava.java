@@ -7,7 +7,6 @@ import fctreddit.api.data.User;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.api.server.persistence.Hibernate;
-import fctreddit.api.server.serviceDiscovery.Discovery;
 
 import java.io.IOException;
 import java.net.InetAddress;
