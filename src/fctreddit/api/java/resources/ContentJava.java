@@ -11,7 +11,6 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.util.Content.VoteType;
 import fctreddit.api.server.persistence.Hibernate;
 
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +18,8 @@ import java.util.logging.Logger;
 
 
 public class ContentJava implements Content {
+
+    private static String lock = "";
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
     private final Hibernate hibernate;
@@ -41,12 +42,16 @@ public class ContentJava implements Content {
 
         try {
             if (post.getParentUrl() != null) {
+                lock = post.getParentUrl();
                 String[] slice = post.getParentUrl().split("/");
                 String postId = slice[slice.length - 1];
                 if (hibernate.get(Post.class, postId) == null)
                     return Result.error(Result.ErrorCode.NOT_FOUND);
             }
-            hibernate.persist(post);
+            synchronized (lock) {
+                hibernate.persist(post);
+                notifyAll();
+            }
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -59,6 +64,7 @@ public class ContentJava implements Content {
         if (sortOrder == null) {
             sortOrder = "";
         }
+
         String commentCountQuery = "(SELECT COUNT(r) FROM Post r WHERE r.parentUrl LIKE CONCAT('%', p.postId))";
 
         List<String> posts;
@@ -101,8 +107,18 @@ public class ContentJava implements Content {
     @Override
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
         List<Post> posts;
+        if (lock.equals(postId)) {
+            synchronized (lock) {
+                try {
+                    lock.wait(maxTimeout);
+                } catch (InterruptedException e) {
+                    Log.severe(e.toString());
+                    return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+                }
+            }
+        }
         try {
-            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
+                posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -354,19 +370,6 @@ public class ContentJava implements Content {
             return Result.error(res.error());
         try {
             List<Vote> vote = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
-            for(Vote vote1 : vote) {
-                Post post=null;
-                if(vote1.getVoteType() == VoteType.UPVOTE) {
-                    post = hibernate.get(Post.class, vote1.getPostId());
-                    post.setUpVote(post.getUpVote() - 1);
-                }
-                if(vote1.getVoteType() == VoteType.DOWNVOTE) {
-                    post = hibernate.get(Post.class, vote1.getPostId());
-                    post.setDownVote(post.getDownVote() - 1);
-                }
-                if(post!=null)
-                hibernate.update(post);
-            }
             hibernate.deleteAll(vote);
         } catch (Exception e) {
             Log.severe(e.toString());
