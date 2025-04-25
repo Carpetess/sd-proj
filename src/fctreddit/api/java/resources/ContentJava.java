@@ -44,6 +44,7 @@ public class ContentJava implements Content {
                 String parentId = parseUrl(post.getParentUrl());
                 if (hibernate.get(Post.class, parentId) == null)
                     return Result.error(Result.ErrorCode.NOT_FOUND);
+
                 lockMap.putIfAbsent(parentId, new Object());
                 Object lock = lockMap.get(parentId);
                 synchronized (lock) {
@@ -109,21 +110,24 @@ public class ContentJava implements Content {
 
     @Override
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
+
         List<Post> posts;
         lockMap.putIfAbsent(postId, new Object());
 
         Object lock = lockMap.get(postId);
         synchronized (lock) {
-            try {
-                lock.wait(maxTimeout);
-            } catch (InterruptedException e) {
-                Log.severe(e.toString());
-                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-            }
+                try {
+                    lock.wait(maxTimeout);
+                } catch (InterruptedException e) {
+                    Log.severe("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+                    Log.severe(e.toString());
+                    return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+                }
         }
         try {
             posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
         } catch (Exception e) {
+            Log.severe("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
