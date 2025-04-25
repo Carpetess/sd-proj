@@ -297,8 +297,6 @@ public class ContentJava implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-
-
         return Result.ok();
     }
 
@@ -340,16 +338,12 @@ public class ContentJava implements Content {
 
         List<Post> posts;
         try {
-            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.authorId = " + userId, Post.class);
-            for (Post post : posts) {
-                post.setAuthorId(null);
-            }
+            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.authorId = '" + userId + "'", Post.class);
             hibernate.update(posts);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-
         return Result.ok();
     }
 
@@ -359,7 +353,8 @@ public class ContentJava implements Content {
         if (!res.isOK())
             return Result.error(res.error());
         try {
-            hibernate.jpql("DELETE FROM Vote v WHERE v.userId = " + userId, Vote.class);
+            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId = '" + userId + "'", Vote.class);
+            hibernate.delete(votes);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
