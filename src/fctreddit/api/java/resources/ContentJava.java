@@ -116,7 +116,6 @@ public class ContentJava implements Content {
         try {
             oldPost = hibernate.get(Post.class, postId);
 
-
             if (oldPost == null){
                 Log.severe("Post " + postId + " not found");
                 return Result.error(Result.ErrorCode.NOT_FOUND);
@@ -354,7 +353,9 @@ public class ContentJava implements Content {
             return Result.error(res.error());
         try {
             List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId = '" + userId + "'", Vote.class);
-            hibernate.delete(votes);
+            for (Vote vote : votes) {
+                hibernate.delete(vote);
+            }
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
