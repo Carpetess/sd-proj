@@ -28,6 +28,10 @@ service Content {
 	rpc getUpVotes ( GetPostArgs ) returns ( VoteCountResult ) {}
 	
 	rpc getDownVotes ( GetPostArgs ) returns ( VoteCountResult ) {}
+
+	rpc removeAllUserVotes ( RemoveAllUserVoteArgs ) returns ( EmptyMessage ) {}
+
+	rpc updatePostOwner ( UpdatePostOwnerArgs ) returns ( EmptyMessage ) {}
 }
 
 message GrpcPost {
@@ -90,4 +94,14 @@ message EmptyMessage {
 
 message VoteCountResult {
 	int32 count = 1;
+}
+
+message RemoveAllUserVoteArgs {
+	string userId = 1;
+	string password = 2;
+}
+
+message UpdatePostOwnerArgs {
+	string userId = 1;
+	string password = 2;
 }

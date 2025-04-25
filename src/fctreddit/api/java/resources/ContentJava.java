@@ -112,25 +112,26 @@ public class ContentJava implements Content {
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
 
         List<Post> posts;
-        lockMap.putIfAbsent(postId, new Object());
+        if (maxTimeout != 0) {
+            lockMap.putIfAbsent(postId, new Object());
 
-        Object lock = lockMap.get(postId);
-        synchronized (lock) {
+            Object lock = lockMap.get(postId);
+            synchronized (lock) {
                 try {
                     lock.wait(maxTimeout);
                 } catch (InterruptedException e) {
-                    Log.severe("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
                     Log.severe(e.toString());
                     return Result.error(Result.ErrorCode.INTERNAL_ERROR);
                 }
+            }
         }
         try {
             posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
         } catch (Exception e) {
-            Log.severe("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
+        Log.info("::DDDDDDDDDDDDDD" );
         return Result.ok(posts.stream().map(Post::getPostId).toList());
     }
 
