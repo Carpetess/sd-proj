@@ -122,7 +122,7 @@ public class UsersJava implements Users {
             }
             contentClientFactory.removeAllUserVotes(userId, password);
             contentClientFactory.updatePostOwner(userId, password);
-            imageClientFactory.deleteImage(userId, user.getAvatarUrl(), password);
+            imageClientFactory.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
 
             hibernate.delete(user);
         } catch (Exception e) {
@@ -143,5 +143,10 @@ public class UsersJava implements Users {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(users);
+    }
+
+    private String parseUrl(String url) {
+        String[] parts = url.split("/");
+        return parts[parts.length - 1];
     }
 }
