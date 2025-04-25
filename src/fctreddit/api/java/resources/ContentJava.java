@@ -11,15 +11,14 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.util.Content.VoteType;
 import fctreddit.api.server.persistence.Hibernate;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 
 public class ContentJava implements Content {
 
-    private static String lock = "";
+    private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
     private final Hibernate hibernate;
@@ -41,20 +40,21 @@ public class ContentJava implements Content {
             return Result.error(user.error());
 
         try {
-            if (post.getParentUrl() != null||!post.getParentUrl().isBlank()) {
-                lock = post.getParentUrl();
-
-                String[] slice = post.getParentUrl().split("/");
-                String postId = slice[slice.length - 1];
-                if (hibernate.get(Post.class, postId) == null) {
-
+            if (post.getParentUrl() != null && !post.getParentUrl().isBlank()) {
+                String parentId = parseUrl(post.getParentUrl());
+                if (hibernate.get(Post.class, parentId) == null)
                     return Result.error(Result.ErrorCode.NOT_FOUND);
+                lockMap.putIfAbsent(parentId, new Object());
+                Object lock = lockMap.get(parentId);
+                synchronized (lock) {
+                    hibernate.persist(post);
+                    lock.notifyAll();
                 }
-            }
-            synchronized (lock) {
+                lockMap.remove(parentId);
+            } else {
                 hibernate.persist(post);
-                notifyAll();
             }
+
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -110,18 +110,19 @@ public class ContentJava implements Content {
     @Override
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
         List<Post> posts;
-        if (lock.equals(postId)) {
-            synchronized (lock) {
-                try {
-                    lock.wait(maxTimeout);
-                } catch (InterruptedException e) {
-                    Log.severe(e.toString());
-                    return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-                }
+        lockMap.putIfAbsent(postId, new Object());
+
+        Object lock = lockMap.get(postId);
+        synchronized (lock) {
+            try {
+                lock.wait(maxTimeout);
+            } catch (InterruptedException e) {
+                Log.severe(e.toString());
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
         }
         try {
-                posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
+            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -178,7 +179,7 @@ public class ContentJava implements Content {
             Log.info("Deleting " + toDelete.size() + " posts");
             hibernate.deleteAll(toDelete);
             if (post.getMediaUrl() != null)
-                imageClient.deleteImage(post.getAuthorId(), parseImageId(post.getMediaUrl()), userPassword);
+                imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
 
         } catch (Exception e) {
             Log.severe(e.toString());
@@ -420,7 +421,7 @@ public class ContentJava implements Content {
             oldPost.setMediaUrl(newPost.getMediaUrl());
     }
 
-    private String parseImageId(String url) {
+    private String parseUrl(String url) {
         String[] slice = url.split("/");
         String imageId = slice[slice.length - 1];
         return imageId;
