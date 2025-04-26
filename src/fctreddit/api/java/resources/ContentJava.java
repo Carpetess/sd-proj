@@ -370,10 +370,8 @@ public class ContentJava implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        Log.info(":DDDDDDDDDDDDD");
-        throw new RuntimeException("Not yet implemented");
+        return Result.ok();
     }
-
     @Override
     public Result<Void> removeAllUserVotes(String userId, String password) {
         Log.info("Removing all votes for user " + userId);
@@ -381,8 +379,22 @@ public class ContentJava implements Content {
         if (!res.isOK())
             return Result.error(res.error());
         try {
-            List<Vote> vote = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
-            hibernate.deleteAll(vote);
+            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
+            for(Vote vote: votes){
+                Post post=null;
+                if(vote.getVoteType() == VoteType.UPVOTE){
+                    post = hibernate.get(Post.class, vote.getPostId());
+                    post.setUpVote(post.getUpVote() - 1);
+                }
+                if(vote.getVoteType() == VoteType.DOWNVOTE){
+                    post = hibernate.get(Post.class, vote.getPostId());
+                    post.setDownVote(post.getDownVote() - 1);
+                }
+                if(post!=null){
+                    hibernate.update(post);
+                }
+            }
+            hibernate.deleteAll(votes);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);

@@ -5,8 +5,10 @@ import fctreddit.impl.grpc.generated_java.ContentGrpc;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf;
 import fctreddit.impl.grpc.generated_java.ImageProtoBuf;
 import io.grpc.Channel;
+import io.grpc.LoadBalancerRegistry;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
+import io.grpc.internal.PickFirstLoadBalancerProvider;
 
 import java.net.URI;
 
@@ -14,6 +16,10 @@ import static fctreddit.api.util.ErrorParser.statusToErrorCode;
 
 public class ContentGrpcClient extends ContentClient {
     final ContentGrpc.ContentBlockingStub stub;
+
+    static {
+        LoadBalancerRegistry.getDefaultRegistry().register(new PickFirstLoadBalancerProvider());
+    }
 
     public ContentGrpcClient(URI selectedServiceURI) {
         Channel channel = ManagedChannelBuilder.forAddress(selectedServiceURI.getHost(), selectedServiceURI.getPort())
