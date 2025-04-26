@@ -142,26 +142,27 @@ public class Hibernate {
         }
     }
 
-    public synchronized void persistVote(Post post, Vote vote) throws InterruptedException {
+    public void persistVote(Post post, Vote vote) throws InterruptedException {
         Transaction tx = null;
         try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
                 var query = session.createQuery("SELECT v FROM Vote v WHERE v.voterId = :voterId AND v.postId = :postId", Vote.class);
                 Vote possibleVote = query.setParameter("voterId", vote.getVoterId())
                         .setParameter("postId", vote.getPostId())
-                        .uniqueResult();
-                if (possibleVote == null)
+                        .getSingleResult();
+                if (possibleVote == null){
                     session.persist(vote);
-                session.merge(post);
-                tx.commit();
-
+                    session.merge(post);
+                    tx.commit();
+                } else
+                    tx.rollback();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             throw e;
         }
     }
 
-    public synchronized void deleteVote(Post post, Vote vote) throws InterruptedException {
+    public void deleteVote(Post post, Vote vote) throws InterruptedException {
         Transaction tx = null;
         try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
@@ -169,11 +170,13 @@ public class Hibernate {
                 var query = session.createQuery("SELECT v FROM Vote v WHERE v.voterId = :voterId AND v.postId = :postId", Vote.class);
                 Vote oldVote = query.setParameter("voterId", vote.getVoterId())
                         .setParameter("postId", vote.getPostId())
-                        .uniqueResult();
-                if (oldVote != null)
+                        .getSingleResult();
+                if (oldVote != null) {
                     session.remove(oldVote);
-                session.merge(post);
-                tx.commit();
+                    session.merge(post);
+                    tx.commit();
+                } else
+                    tx.rollback();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             throw e;
