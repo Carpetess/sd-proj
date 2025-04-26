@@ -121,7 +121,7 @@ public class UsersJava implements Users {
             }
             contentClientFactory.removeAllUserVotes(userId, password);
             contentClientFactory.updatePostOwner(userId, password);
-            if (user.getAvatarUrl() != null) {
+            if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
                 imageClientFactory.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
             }
 

@@ -8,8 +8,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class RestClientHelper {
-    private static final int MIN_REPLIES = 1;
-    private static final int MAX_RETRIES = 1;
+    private static final int MAX_RETRIES = 500;
     private static final int RETRY_SLEEP = 500;
 
     private static Logger Log = Logger.getLogger(RestClientHelper.class.getName());

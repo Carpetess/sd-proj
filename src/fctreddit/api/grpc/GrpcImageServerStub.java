@@ -25,10 +25,8 @@ public class GrpcImageServerStub implements ImageGrpc.AsyncService, BindableServ
     @Override
     public void createImage(ImageProtoBuf.CreateImageArgs request, StreamObserver<ImageProtoBuf.CreateImageResult> responseObserver) {
         Result<String> res = impl.createImage(request.getUserId(), request.getImageContents().toByteArray(), request.hasPassword() ? request.getPassword() : null);
-        if(!res.isOK()) {
+        if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
-            return;
-        }
 
         URI finalURI = URI.create(ImageServer.serverURI + res.value());
         responseObserver.onNext(ImageProtoBuf.CreateImageResult.newBuilder().setImageId(finalURI.toString()).build());
@@ -38,10 +36,8 @@ public class GrpcImageServerStub implements ImageGrpc.AsyncService, BindableServ
     @Override
     public void getImage(ImageProtoBuf.GetImageArgs request, StreamObserver<ImageProtoBuf.GetImageResult> responseObserver) {
         Result<byte[]> res = impl.getImage(request.getUserId(), request.getImageId());
-        if(!res.isOK()) {
+        if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
-            return;
-        }
         ByteString bs = ByteString.copyFrom(res.value());
         responseObserver.onNext(ImageProtoBuf.GetImageResult.newBuilder().setData(bs).build());
         responseObserver.onCompleted();
@@ -50,10 +46,8 @@ public class GrpcImageServerStub implements ImageGrpc.AsyncService, BindableServ
     @Override
     public void deleteImage(ImageProtoBuf.DeleteImageArgs request, StreamObserver<ImageProtoBuf.DeleteImageResult> responseObserver) {
         Result<Void> res = impl.deleteImage(request.getUserId(), request.getImageId(), request.hasPassword() ? request.getPassword() : null);
-        if(!res.isOK()){
+        if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
-            return;
-        }
         responseObserver.onNext(ImageProtoBuf.DeleteImageResult.newBuilder().build());
         responseObserver.onCompleted();
     }
