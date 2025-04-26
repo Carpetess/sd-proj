@@ -138,21 +138,6 @@ public class Hibernate {
         }
     }
 
-    public void updateVote(Post post, Vote vote) {
-        Transaction tx = null;
-        try(var session = sessionFactory.openSession()) {
-            tx = session.beginTransaction();
-            var  query = session.createNativeQuery("SELECT v FROM Vote WHERE v.voterId LIKE '" + vote.getVoterId() +"' AND v.postId LIKE '" + vote.getPostId() + "'", Vote.class);
-            Vote oldVote = query.getSingleResult();
-            if (oldVote != null)
-                session.merge(vote);
-            else
-                session.persist(vote);
-            session.merge(post);
-            tx.commit();
-        } catch (Exception e) {}
-    }
-
 
     /**
      * Performs a jpql Hibernate query (SQL dialect)
