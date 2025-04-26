@@ -198,7 +198,9 @@ public class ContentJava implements Content {
 
     private List<Post> deletePostHelper(String postId) {
         List<Post> answers = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
+        List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.postId LIKE '" + postId + "'", Vote.class);;
         List<Post> toDelete = new LinkedList<>(answers);
+        hibernate.deleteAll(votes);
         for (Post answer : answers) {
             toDelete.addAll(deletePostHelper(answer.getPostId()));
         }
@@ -263,8 +265,7 @@ public class ContentJava implements Content {
 
         try {
             Vote vote = voteRes.value();
-            vote.setVoteType(VoteType.NONE);
-            hibernate.update(vote);
+            hibernate.delete(vote);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -367,7 +368,7 @@ public class ContentJava implements Content {
             }
             hibernate.updateAll(posts);
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.warning(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok();

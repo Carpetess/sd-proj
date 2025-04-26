@@ -29,12 +29,7 @@ public class ImageJava implements Image {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
 
         UserClientFactory factory;
-        try {
-            factory = UserClientFactory.getInstance();
-        } catch (IOException e) {
-            Log.severe("Exception getting client factories");
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
+        factory = UserClientFactory.getInstance();
         Result<User> user = factory.getUser(userId, password);
 
         if (!user.isOK()){
@@ -86,11 +81,7 @@ public class ImageJava implements Image {
         if (password == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         UserClientFactory factory;
-        try {
-            factory = UserClientFactory.getInstance();
-        } catch (IOException e) {
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
+        factory = UserClientFactory.getInstance();
         Result<User> user = factory.getUser(userId, password);
         if (!user.isOK())
             return Result.error(user.error());
