@@ -119,6 +119,7 @@ public class Hibernate {
             tx.commit();
         } catch (Exception e) {
             if (tx!=null) tx.rollback();
+            throw e;
         }
     }
 
@@ -129,6 +130,9 @@ public class Hibernate {
             for( var o : objects )
                 session.merge(o);
             tx.commit();
+        } catch (Exception e) {
+            if (tx!=null) tx.rollback();
+            throw e;
         }
     }
 

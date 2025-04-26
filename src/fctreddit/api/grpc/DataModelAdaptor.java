@@ -44,17 +44,20 @@ public class DataModelAdaptor {
 
     public static GrpcPost Post_to_GrpcPost(Post from) {
         GrpcPost.Builder b = GrpcPost.newBuilder()
-                .setPostId( from.getPostId())
-                .setAuthorId( from.getAuthorId())
                 .setCreationTimestamp( from.getCreationTimestamp())
-                .setContent( from.getContent())
                 .setUpVote( from.getUpVote())
                 .setDownVote( from.getDownVote());
 
+        if(from.getAuthorId() != null)
+            b.setAuthorId( from.getAuthorId());
+        if(from.getPostId() != null)
+            b.setPostId( from.getPostId());
         if(from.getMediaUrl() != null)
             b.setMediaUrl( from.getMediaUrl());
         if(from.getParentUrl() != null)
             b.setParentUrl( from.getParentUrl());
+        if(from.getContent() != null)
+            b.setContent( from.getContent());
 
         return b.build();
     }

@@ -41,7 +41,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void deletePost(ContentProtoBuf.DeletePostArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.deletePost(request.getPostId(), request.getPassword());
+        Result<Void> res = impl.deletePost(request.getPostId(), request.hasPassword() ? request.getPassword() : null);
         if (!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
@@ -50,7 +50,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void downVotePost(ContentProtoBuf.ChangeVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.downVotePost(request.getPostId(), request.getUserId(), request.getPassword());
+        Result<Void> res = impl.downVotePost(request.getPostId(), request.getUserId(), request.hasPassword() ? request.getPassword() : null);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
@@ -59,7 +59,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void upVotePost(ContentProtoBuf.ChangeVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.upVotePost(request.getPostId(), request.getUserId(), request.getPassword());
+        Result<Void> res = impl.upVotePost(request.getPostId(), request.getUserId(), request.hasPassword() ? request.getPassword() : null);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
@@ -68,7 +68,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void removeDownVotePost(ContentProtoBuf.ChangeVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.removeDownVotePost(request.getPostId(), request.getUserId(), request.getPassword());
+        Result<Void> res = impl.removeDownVotePost(request.getPostId(), request.getUserId(), request.hasPassword() ? request.getPassword() : null);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
@@ -77,7 +77,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void removeUpVotePost(ContentProtoBuf.ChangeVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.removeUpVotePost(request.getPostId(), request.getUserId(), request.getPassword());
+        Result<Void> res = impl.removeUpVotePost(request.getPostId(), request.getUserId(), request.hasPassword() ? request.getPassword() : null);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
@@ -104,7 +104,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void getPosts(ContentProtoBuf.GetPostsArgs request, StreamObserver<ContentProtoBuf.GetPostsResult> responseObserver) {
-        Result<List<String>> res = impl.getPosts(request.getTimestamp(), request.getSortOrder());
+        Result<List<String>> res = impl.getPosts(request.hasTimestamp() ? request.getTimestamp() : 0, request.hasSortOrder() ? request.getSortOrder() : null);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.GetPostsResult.newBuilder().addAllPostId(res.value()).build());
@@ -113,7 +113,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void getPostAnswers(ContentProtoBuf.GetPostAnswersArgs request, StreamObserver<ContentProtoBuf.GetPostsResult> responseObserver) {
-        Result<List<String>> res = impl.getPostAnswers(request.getPostId(), request.getTimeout());
+        Result<List<String>> res = impl.getPostAnswers(request.getPostId(), request.hasTimeout() ? request.getTimeout() : 0L);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.GetPostsResult.newBuilder().addAllPostId(res.value()).build());
@@ -122,10 +122,11 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void updatePost(ContentProtoBuf.UpdatePostArgs request, StreamObserver<ContentProtoBuf.GrpcPost> responseObserver) {
-        Result<Post> res = impl.updatePost(request.getPostId(), request.getPassword(), DataModelAdaptor.GrpcPost_to_Post(request.getPost()));
+        Result<Post> res = impl.updatePost(request.getPostId(), request.hasPassword() ? request.getPassword() : null, DataModelAdaptor.GrpcPost_to_Post(request.getPost()));
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(DataModelAdaptor.Post_to_GrpcPost(res.value()));
+        responseObserver.onCompleted();
     }
 
     @Override
@@ -143,11 +144,8 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
+        responseObserver.onCompleted();
 
     }
-
-
-
-
 
 }

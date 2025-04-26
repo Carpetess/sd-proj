@@ -28,11 +28,10 @@ public class ImageGrpcClient extends ImageClient {
         Channel channel = ManagedChannelBuilder.forAddress(selectedServiceURI.getHost(), selectedServiceURI.getPort())
                 .enableRetry().usePlaintext().build();
         stub = ImageGrpc.newBlockingStub(channel);
-
     }
 
     @Override
-    public Result<Void> deleteImage(String userId, String password, String imageId) {
+    public Result<Void> deleteImage(String userId, String imageId, String password) {
         try {
             ImageProtoBuf.DeleteImageResult res = stub.deleteImage(ImageProtoBuf.DeleteImageArgs.newBuilder()
                     .setImageId(imageId).setUserId(userId).setPassword(password).build());

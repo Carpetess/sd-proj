@@ -147,6 +147,7 @@ public class ContentJava implements Content {
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             }
 
+            Log.info("Updating post " + postId);
             List<Post> comments = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
             int commentCount = comments.size();
             if (!canEdit(post, oldPost, commentCount))
@@ -161,6 +162,7 @@ public class ContentJava implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
+        Log.info("Updating post " + postId);
         return Result.ok(post);
     }
 
@@ -368,7 +370,8 @@ public class ContentJava implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        return Result.ok();
+        Log.info(":DDDDDDDDDDDDD");
+        throw new RuntimeException("Not yet implemented");
     }
 
     @Override
@@ -420,9 +423,9 @@ public class ContentJava implements Content {
     }
 
     private void update(Post newPost, Post oldPost) {
-        if (newPost.getContent() != null)
+        if (newPost.getContent() != null && !newPost.getContent().isBlank())
             oldPost.setContent(newPost.getContent());
-        if (newPost.getMediaUrl() != null)
+        if (newPost.getMediaUrl() != null && !newPost.getMediaUrl().isBlank())
             oldPost.setMediaUrl(newPost.getMediaUrl());
     }
 
