@@ -214,7 +214,7 @@ public class ContentJava implements Content {
                 return Result.error(voteHelper.error());
             int upVotes = post.getUpVote();
             post.setUpVote(upVotes + 1);
-            hibernate.updateVote(post, voteHelper.value());
+            hibernate.persistVote(post, voteHelper.value());
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -248,7 +248,7 @@ public class ContentJava implements Content {
                 return Result.error(voteHelper.error());
             int downVotes = post.getDownVote();
             post.setDownVote(downVotes + 1);
-            hibernate.updateVote(post, voteHelper.value());
+            hibernate.persistVote(post, voteHelper.value());
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);

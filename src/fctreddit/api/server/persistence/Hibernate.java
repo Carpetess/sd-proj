@@ -17,7 +17,7 @@ public class Hibernate {
     private static final String HIBERNATE_CFG_FILE = "hibernate.cfg.xml";
     private SessionFactory sessionFactory;
     private static Hibernate instance;
-
+    private static final Object LOCK = new Object();
 
     private Hibernate() {
         try {
@@ -142,36 +142,38 @@ public class Hibernate {
         }
     }
 
-    public synchronized void updateVote(Post post, Vote vote) {
+    public synchronized void persistVote(Post post, Vote vote) throws InterruptedException {
         Transaction tx = null;
         try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            var query = session.createQuery("SELECT v FROM Vote v WHERE v.voterId = :voterId AND v.postId = :postId", Vote.class);
-            Vote possibleVote = query.setParameter("voterId", vote.getVoterId())
-                    .setParameter("postId", vote.getPostId())
-                    .uniqueResult();
-            if (possibleVote == null)
-                session.persist(vote);
-            session.merge(post);
-            tx.commit();
+                var query = session.createQuery("SELECT v FROM Vote v WHERE v.voterId = :voterId AND v.postId = :postId", Vote.class);
+                Vote possibleVote = query.setParameter("voterId", vote.getVoterId())
+                        .setParameter("postId", vote.getPostId())
+                        .uniqueResult();
+                if (possibleVote == null)
+                    session.persist(vote);
+                session.merge(post);
+                tx.commit();
+
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             throw e;
         }
     }
 
-    public synchronized void deleteVote(Post post, Vote vote) {
+    public synchronized void deleteVote(Post post, Vote vote) throws InterruptedException {
         Transaction tx = null;
         try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            var query = session.createQuery("SELECT v FROM Vote v WHERE v.voterId = :voterId AND v.postId = :postId", Vote.class);
-            Vote oldVote = query.setParameter("voterId", vote.getVoterId())
-                    .setParameter("postId", vote.getPostId())
-                    .uniqueResult();
-            if (oldVote != null)
-                session.remove(oldVote);
-            session.merge(post);
-            tx.commit();
+
+                var query = session.createQuery("SELECT v FROM Vote v WHERE v.voterId = :voterId AND v.postId = :postId", Vote.class);
+                Vote oldVote = query.setParameter("voterId", vote.getVoterId())
+                        .setParameter("postId", vote.getPostId())
+                        .uniqueResult();
+                if (oldVote != null)
+                    session.remove(oldVote);
+                session.merge(post);
+                tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
             throw e;
