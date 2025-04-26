@@ -3,6 +3,8 @@ package fctreddit.api.server.persistence;
 import java.io.File;
 import java.util.List;
 
+import fctreddit.api.data.Post;
+import fctreddit.api.data.Vote;
 import fctreddit.api.java.Result;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -134,6 +136,21 @@ public class Hibernate {
             if (tx!=null) tx.rollback();
             throw e;
         }
+    }
+
+    public void updateVote(Post post, Vote vote) {
+        Transaction tx = null;
+        try(var session = sessionFactory.openSession()) {
+            tx = session.beginTransaction();
+            var  query = session.createNativeQuery("SELECT v FROM Vote WHERE v.voterId LIKE '" + vote.getVoterId() +"' AND v.postId LIKE '" + vote.getPostId() + "'", Vote.class);
+            Vote oldVote = query.getSingleResult();
+            if (oldVote != null)
+                session.merge(vote);
+            else
+                session.persist(vote);
+            session.merge(post);
+            tx.commit();
+        } catch (Exception e) {}
     }
 
 

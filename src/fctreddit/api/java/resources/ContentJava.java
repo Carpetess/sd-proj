@@ -147,16 +147,16 @@ public class ContentJava implements Content {
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             }
 
-            Log.info("Updating post " + postId);
+            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.postId LIKE '" + postId + "'", Vote.class);
             List<Post> comments = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
-            int commentCount = comments.size();
-            if (!canEdit(post, oldPost, commentCount))
+
+            if (!comments.isEmpty()|| !votes.isEmpty())
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
+
             update(post, oldPost);
             Result<User> res = getUser(oldPost.getAuthorId(), userPassword);
             if (!res.isOK())
                 return Result.error(res.error());
-
             hibernate.update(oldPost);
         } catch (Exception e) {
             Log.severe(e.toString());
@@ -429,10 +429,6 @@ public class ContentJava implements Content {
                 && post.getAuthorId() != null && !post.getAuthorId().isBlank();
     }
 
-    private boolean canEdit(Post post, Post oldPost, int commentCount) {
-        return (post.getAuthorId() == null || post.getAuthorId().isBlank())
-                && commentCount == 0;
-    }
 
     private void update(Post newPost, Post oldPost) {
         if (newPost.getContent() != null && !newPost.getContent().isBlank())
