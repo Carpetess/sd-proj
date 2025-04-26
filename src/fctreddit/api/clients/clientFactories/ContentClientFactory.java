@@ -17,12 +17,9 @@ public class ContentClientFactory {
 
     Discovery discovery;
 
-    private ContentClientFactory() throws IOException {
-        discovery = new Discovery(Discovery.DISCOVERY_ADDR);
-        discovery.start();
-    }
+    private ContentClientFactory() {}
 
-    public static ContentClientFactory getInstance() throws IOException {
+    public static ContentClientFactory getInstance() {
         if (instance == null) {
             instance = new ContentClientFactory();
         }
@@ -61,5 +58,9 @@ public class ContentClientFactory {
             client = new ContentGrpcClient(selectedServiceURI);
         }
         return Result.ok(client);
+    }
+
+    public void setDiscovery(Discovery discovery) {
+        this.discovery = discovery;
     }
 }

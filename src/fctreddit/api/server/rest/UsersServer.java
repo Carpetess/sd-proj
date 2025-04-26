@@ -1,5 +1,7 @@
 package fctreddit.api.server.rest;
 
+import fctreddit.api.clients.clientFactories.ContentClientFactory;
+import fctreddit.api.clients.clientFactories.ImageClientFactory;
 import fctreddit.api.rest.UserResource;
 import fctreddit.api.server.serviceDiscovery.Discovery;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
@@ -34,6 +36,8 @@ public class UsersServer {
             String serverURI = String.format(SERVER_URI_FMT, ip, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
             discovery.start();
+            ContentClientFactory.getInstance().setDiscovery(discovery);
+            ImageClientFactory.getInstance().setDiscovery(discovery);
             JdkHttpServerFactory.createHttpServer( URI.create(serverURI), config);
 
             Log.info(String.format("%s Server ready @ %s\n",  SERVICE, serverURI));

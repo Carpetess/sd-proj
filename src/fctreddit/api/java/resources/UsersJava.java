@@ -97,15 +97,8 @@ public class UsersJava implements Users {
 
     @Override
     public Result<User> deleteUser(String userId, String password) {
-        ContentClientFactory contentClientFactory;
-        ImageClientFactory imageClientFactory;
-        try {
-            contentClientFactory = ContentClientFactory.getInstance();
-            imageClientFactory = ImageClientFactory.getInstance();
-        } catch (IOException e) {
-            Log.severe("Exception getting client factories");
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
+        ContentClientFactory contentClientFactory = ContentClientFactory.getInstance();
+        ImageClientFactory imageClientFactory = ImageClientFactory.getInstance();
         if (userId == null || password == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }

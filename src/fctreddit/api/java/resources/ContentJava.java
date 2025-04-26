@@ -131,7 +131,7 @@ public class ContentJava implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        Log.info("::DDDDDDDDDDDDDD" );
+        Log.info("::DDDDDDDDDDDDDD");
         return Result.ok(posts.stream().map(Post::getPostId).toList());
     }
 
@@ -150,7 +150,7 @@ public class ContentJava implements Content {
             List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.postId LIKE '" + postId + "'", Vote.class);
             List<Post> comments = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
 
-            if (!comments.isEmpty()|| !votes.isEmpty())
+            if (!comments.isEmpty() || !votes.isEmpty())
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
 
             update(post, oldPost);
@@ -209,67 +209,16 @@ public class ContentJava implements Content {
     public Result<Void> upVotePost(String postId, String userId, String userPassword) {
         try {
             Post post = hibernate.get(Post.class, postId);
-            Result<Void> voteHelper = voteHelper(post, userId, userPassword, VoteType.UPVOTE);
+            Result<Vote> voteHelper = voteHelper(post, userId, userPassword, VoteType.UPVOTE);
             if (!voteHelper.isOK())
-                return voteHelper;
+                return Result.error(voteHelper.error());
             int upVotes = post.getUpVote();
             post.setUpVote(upVotes + 1);
-            hibernate.update(post);
+            hibernate.updateVote(post, voteHelper.value());
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        return Result.ok();
-    }
-
-    private Result<Void> voteHelper(Post post, String userId, String userPassword, VoteType voteType) {
-        Result<User> res = getUser(userId, userPassword);
-        if (!res.isOK())
-            return Result.error(res.error());
-
-        if (post == null)
-            return Result.error(Result.ErrorCode.NOT_FOUND);
-
-        Result<Vote> voteRes = getVote(post.getPostId(), userId);
-
-        if (voteRes.isOK() && voteRes.value() != null && voteRes.value().getVoteType() != VoteType.NONE)
-            return Result.error(Result.ErrorCode.CONFLICT);
-
-        try {
-            Vote vote = voteRes.value();
-            if (vote == null)
-                hibernate.persist(new Vote(userId, post.getPostId(), voteType));
-            else {
-                vote.setVoteType(voteType);
-                hibernate.update(vote);
-            }
-        } catch (Exception e) {
-            Log.severe(e.toString());
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
-        return Result.ok();
-    }
-
-    private Result<Void> removeVoteHelper(Post post, String userId, String userPassword, VoteType voteType) {
-        Result<User> res = getUser(userId, userPassword);
-        if (!res.isOK())
-            return Result.error(res.error());
-        if (post == null)
-            return Result.error(Result.ErrorCode.NOT_FOUND);
-        Result<Vote> voteRes = getVote(post.getPostId(), userId);
-
-        if (voteRes.isOK() && (voteRes.value() == null || voteRes.value().getVoteType() != voteType))
-            return Result.error(Result.ErrorCode.CONFLICT);
-
-        try {
-            Vote vote = voteRes.value();
-            vote.setVoteType(VoteType.NONE);
-            hibernate.update(vote);
-        } catch (Exception e) {
-            Log.severe(e.toString());
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
-
         return Result.ok();
     }
 
@@ -277,12 +226,12 @@ public class ContentJava implements Content {
     public Result<Void> removeUpVotePost(String postId, String userId, String userPassword) {
         try {
             Post post = hibernate.get(Post.class, postId);
-            Result<Void> voteHelper = removeVoteHelper(post, userId, userPassword, VoteType.UPVOTE);
+            Result<Vote> voteHelper = removeVoteHelper(post, userId, userPassword, VoteType.UPVOTE);
             if (!voteHelper.isOK())
-                return voteHelper;
+                return Result.error(voteHelper.error());
             int upVotes = post.getUpVote();
             post.setUpVote(upVotes - 1);
-            hibernate.update(post);
+            hibernate.deleteVote(post, voteHelper.value());
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -294,12 +243,12 @@ public class ContentJava implements Content {
     public Result<Void> downVotePost(String postId, String userId, String userPassword) {
         try {
             Post post = hibernate.get(Post.class, postId);
-            Result<Void> voteHelper = voteHelper(post, userId, userPassword, VoteType.DOWNVOTE);
+            Result<Vote> voteHelper = voteHelper(post, userId, userPassword, VoteType.DOWNVOTE);
             if (!voteHelper.isOK())
-                return voteHelper;
+                return Result.error(voteHelper.error());
             int downVotes = post.getDownVote();
             post.setDownVote(downVotes + 1);
-            hibernate.update(post);
+            hibernate.updateVote(post, voteHelper.value());
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -311,12 +260,12 @@ public class ContentJava implements Content {
     public Result<Void> removeDownVotePost(String postId, String userId, String userPassword) {
         try {
             Post post = hibernate.get(Post.class, postId);
-            Result<Void> voteHelper = removeVoteHelper(post, userId, userPassword, VoteType.DOWNVOTE);
+            Result<Vote> voteHelper = removeVoteHelper(post, userId, userPassword, VoteType.DOWNVOTE);
             if (!voteHelper.isOK())
-                return voteHelper;
+                return Result.error(voteHelper.error());
             int downVotes = post.getDownVote();
             post.setDownVote(downVotes - 1);
-            hibernate.update(post);
+            hibernate.deleteVote(post, voteHelper.value());
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -372,6 +321,7 @@ public class ContentJava implements Content {
         }
         return Result.ok();
     }
+
     @Override
     public Result<Void> removeAllUserVotes(String userId, String password) {
         Log.info("Removing all votes for user " + userId);
@@ -380,17 +330,17 @@ public class ContentJava implements Content {
             return Result.error(res.error());
         try {
             List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
-            for(Vote vote: votes){
-                Post post=null;
-                if(vote.getVoteType() == VoteType.UPVOTE){
+            for (Vote vote : votes) {
+                Post post = null;
+                if (vote.getVoteType() == VoteType.UPVOTE) {
                     post = hibernate.get(Post.class, vote.getPostId());
                     post.setUpVote(post.getUpVote() - 1);
                 }
-                if(vote.getVoteType() == VoteType.DOWNVOTE){
+                if (vote.getVoteType() == VoteType.DOWNVOTE) {
                     post = hibernate.get(Post.class, vote.getPostId());
                     post.setDownVote(post.getDownVote() - 1);
                 }
-                if(post!=null){
+                if (post != null) {
                     hibernate.update(post);
                 }
             }
@@ -441,6 +391,37 @@ public class ContentJava implements Content {
         String[] slice = url.split("/");
         String imageId = slice[slice.length - 1];
         return imageId;
+    }
+
+    private Result<Vote> voteHelper(Post post, String userId, String userPassword, VoteType voteType) {
+        Result<User> res = getUser(userId, userPassword);
+        if (!res.isOK())
+            return Result.error(res.error());
+
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        Result<Vote> voteRes = getVote(post.getPostId(), userId);
+
+        if (voteRes.isOK() && voteRes.value() != null && voteRes.value().getVoteType() != VoteType.NONE)
+            return Result.error(Result.ErrorCode.CONFLICT);
+        Vote vote = voteRes.value();
+        if (vote == null)
+            vote = new Vote(userId, post.getPostId(), voteType);
+        else
+            vote.setVoteType(voteType);
+        return Result.ok(vote);
+    }
+
+    private Result<Vote> removeVoteHelper(Post post, String userId, String userPassword, VoteType voteType) {
+        Result<User> res = getUser(userId, userPassword);
+        if (!res.isOK())
+            return Result.error(res.error());
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        Result<Vote> voteRes = getVote(post.getPostId(), userId);
+        if (voteRes.isOK() && (voteRes.value() == null || voteRes.value().getVoteType() != voteType))
+            return Result.error(Result.ErrorCode.CONFLICT);
+        return Result.ok(voteRes.value());
     }
 
 }

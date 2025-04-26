@@ -19,12 +19,10 @@ public class UserClientFactory {
 
     Discovery discovery ;
 
-    private UserClientFactory() throws IOException {
-        discovery = new Discovery(Discovery.DISCOVERY_ADDR);
-        discovery.start();
+    private UserClientFactory() {
     }
 
-    public static UserClientFactory getInstance() throws IOException {
+    public static UserClientFactory getInstance() {
         if (instance == null)
             instance = new UserClientFactory();
         return instance;
@@ -55,4 +53,7 @@ public class UserClientFactory {
         return Result.ok(client);
     }
 
+    public void setDiscovery(Discovery discovery) {
+        this.discovery = discovery;
+    }
 }

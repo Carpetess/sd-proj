@@ -1,5 +1,7 @@
 package fctreddit.api.server.grpc;
 
+import fctreddit.api.clients.clientFactories.ImageClientFactory;
+import fctreddit.api.clients.clientFactories.UserClientFactory;
 import fctreddit.api.grpc.GrpcContentServerStub;
 import fctreddit.api.rest.ContentResource;
 import fctreddit.api.server.rest.UsersServer;
@@ -41,7 +43,8 @@ public class ContentServer {
 
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
             discovery.start();
-
+            ImageClientFactory.getInstance().setDiscovery(discovery);
+            UserClientFactory.getInstance().setDiscovery(discovery);
             Log.info(String.format("%s Server ready @ %s\n",  SERVICE, serverURI));
             server.start().awaitTermination();
         } catch( Exception e) {

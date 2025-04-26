@@ -16,12 +16,9 @@ public class ImageClientFactory {
 
     Discovery discovery;
 
-    private ImageClientFactory() throws IOException {
-        discovery = new Discovery(Discovery.DISCOVERY_ADDR);
-        discovery.start();
-    }
+    private ImageClientFactory() {}
 
-    public static ImageClientFactory getInstance() throws IOException {
+    public static ImageClientFactory getInstance() {
         if (instance == null) {
             instance = new ImageClientFactory();
         }
@@ -54,5 +51,8 @@ public class ImageClientFactory {
         return Result.ok(client);
     }
 
+    public void setDiscovery(Discovery discovery) {
+        this.discovery = discovery;
+    }
 
 }
