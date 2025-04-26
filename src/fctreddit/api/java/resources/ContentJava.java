@@ -226,15 +226,13 @@ public class ContentJava implements Content {
         Result<User> res = getUser(userId, userPassword);
         if (!res.isOK())
             return Result.error(res.error());
-
         if (post == null)
             return Result.error(Result.ErrorCode.NOT_FOUND);
 
         Result<Vote> voteRes = getVote(post.getPostId(), userId);
 
-        if (voteRes.isOK() && voteRes.value() != null && voteRes.value().getVoteType() != VoteType.NONE)
+        if (voteRes.isOK() && voteRes.value() != null)
             return Result.error(Result.ErrorCode.CONFLICT);
-
         try {
             Vote vote = voteRes.value();
             if (vote == null)
@@ -260,11 +258,9 @@ public class ContentJava implements Content {
 
         if (voteRes.isOK() && (voteRes.value() == null || voteRes.value().getVoteType() != voteType))
             return Result.error(Result.ErrorCode.CONFLICT);
-
         try {
             Vote vote = voteRes.value();
-            vote.setVoteType(VoteType.NONE);
-            hibernate.update(vote);
+            hibernate.delete(vote);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);

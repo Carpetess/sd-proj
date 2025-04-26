@@ -16,8 +16,6 @@ public class Post {
 	private String postId;
 	private String authorId;
 	private long creationTimestamp;
-	@JsonIgnore
-	private String postHierarchy;
 	@Column(length = 1000)
 	private String content;
 	private String mediaUrl;
