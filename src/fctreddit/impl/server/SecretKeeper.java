@@ -5,9 +5,8 @@ public class SecretKeeper {
     private String secret;
 
     public static SecretKeeper getInstance() {
-        if (instance == null) {
-             instance=new SecretKeeper();
-        }
+        if (instance == null)
+             instance= new SecretKeeper();
         return instance;
     }
     private SecretKeeper() {

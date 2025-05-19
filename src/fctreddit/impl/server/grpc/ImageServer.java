@@ -59,7 +59,7 @@ public class ImageServer {
         Server server = NettyServerBuilder.forPort(PORT)
                 .addService(stub).sslContext(context).build();
 
-        String serverURI = String.format(SERVER_URI_FMT, InetAddress.getLocalHost().getHostName(), PORT);
+        serverURI = String.format(SERVER_URI_FMT, InetAddress.getLocalHost().getHostName(), PORT);
 
         discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
         discovery.start();

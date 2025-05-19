@@ -3,6 +3,8 @@ package fctreddit.impl.server;
 import java.io.File;
 import java.util.List;
 
+import fctreddit.api.data.Post;
+import fctreddit.api.data.Vote;
 import jakarta.persistence.RollbackException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -93,6 +95,27 @@ public class Hibernate {
         for(Object o: objects) {
             tx.session.persist(o);
         }
+    }
+
+    public void persistVote(TX tx, Vote vote, Post post){
+        try{
+            tx.session.persist(vote);
+            tx.session.merge(post);
+            tx.tx.commit();
+        } finally {
+            tx.session.close();
+        }
+
+    }
+
+    public void deleteVote(TX tx, Vote vote, Post post){
+        try {
+            tx.session.remove(vote);
+            tx.session.merge(post);
+        } finally {
+            tx.session.close();
+        }
+
     }
 
     /**
@@ -193,6 +216,10 @@ public class Hibernate {
         } catch (Exception e) {
             throw e;
         }
+    }
+    public <T> List<T> jpql(TX tx, String jpqlStatement, Class<T> clazz) {
+        Query<T> query = tx.session.createQuery(jpqlStatement, clazz);
+        return query.list();
     }
 
     /**

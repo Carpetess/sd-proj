@@ -224,9 +224,10 @@ public class ContentJava extends JavaServer implements Content {
         }
         p.setUpVote(p.getUpVote() + 1);
 
+
         try {
-            hibernate.persist(tx, new Vote(userId, postId, true));
-            hibernate.update(tx, p);
+            hibernate.persistVote(tx, new Vote(userId, postId, true), p);
+            Log.info("Persisted vote");
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -258,11 +259,14 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
         Post p = hibernate.get(tx, Post.class, postId);
+        if (p == null) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        }
         p.setUpVote(p.getUpVote() - 1);
 
         try {
-            hibernate.delete(tx, i.iterator().next());
-            hibernate.update(tx, p);
+            hibernate.deleteVote(tx, i.iterator().next(), p);
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -292,14 +296,12 @@ public class ContentJava extends JavaServer implements Content {
         if (p == null) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
-        } else {
-            p.setDownVote(p.getDownVote() + 1);
         }
+            p.setDownVote(p.getDownVote() + 1);
+        Log.info("Updated post");
 
         try {
-            hibernate.persist(tx, new Vote(userId, postId, false));
-            hibernate.update(tx, p);
-            hibernate.commitTransaction(tx);
+            hibernate.persistVote(tx, new Vote(userId, postId, false), p);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
@@ -330,12 +332,14 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
         Post p = hibernate.get(tx, Post.class, postId);
+        if (p == null) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        }
         p.setDownVote(p.getDownVote() - 1);
 
         try {
-            hibernate.delete(tx, i.iterator().next());
-            hibernate.update(tx, p);
-            hibernate.commitTransaction(tx);
+            hibernate.deleteVote(tx, i.iterator().next(), p);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -398,6 +402,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
+        Hibernate.TX tx = hibernate.beginTransaction();
         if(!secret.equals(SecretKeeper.getInstance().getSecret())){
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
@@ -406,22 +411,24 @@ public class ContentJava extends JavaServer implements Content {
         if (!res.isOK())
             return Result.error(res.error());
         try {
-            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
+            List<Vote> votes = hibernate.jpql(tx, "SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
+            List<Post> posts = new LinkedList<>();
             for (Vote vote : votes) {
-                Post post = hibernate.get(Post.class, vote.getPostId());
+                Post post = hibernate.get(tx, Post.class, vote.getPostId());
                 if (vote.isUpVote())
                     post.setUpVote(post.getUpVote() - 1);
 
-                if (vote.isUpVote())
+                if (!vote.isUpVote())
                     post.setDownVote(post.getDownVote() - 1);
-
-                hibernate.update(post);
-
+                posts.add(post);
             }
+            hibernate.updateAll(posts);
             hibernate.deleteAll(votes);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        } finally {
+            hibernate.commitTransaction(tx);
         }
         return Result.ok();
     }
