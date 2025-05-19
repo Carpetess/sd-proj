@@ -20,6 +20,7 @@ public abstract class Client {
 
 	protected static final int MAX_RETRIES = 10;
 	protected static final int RETRY_SLEEP = 5000;
+    protected static String secret;
 	
 	private static Logger Log = Logger.getLogger(Client.class.getName());
 
@@ -32,6 +33,10 @@ public abstract class Client {
 	public URI getServerURI () {
 		return this.serverURI;
 	}
+
+    public void setSecret (String secret) {
+        Client.secret = secret;
+    }
 
 
 	protected Response executeOperation(Supplier<Response> func) {

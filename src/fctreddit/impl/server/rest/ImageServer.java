@@ -1,6 +1,7 @@
 package fctreddit.impl.server.rest;
 
 import fctreddit.impl.server.Discovery;
+import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.JavaServer;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -31,7 +32,7 @@ public class ImageServer {
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ImageResource.class);
-
+            SecretKeeper.getInstance().setSecret(args[args.length-1]);
             String hostName = InetAddress.getLocalHost().getHostName();
             serverURI = String.format(SERVER_URI_FMT, hostName, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);

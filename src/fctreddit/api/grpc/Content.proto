@@ -99,9 +99,11 @@ message VoteCountResult {
 message RemoveAllUserVoteArgs {
 	string userId = 1;
 	string password = 2;
+	string secret=3;
 }
 
 message UpdatePostOwnerArgs {
 	string userId = 1;
 	string password = 2;
+	string secret=3;
 }

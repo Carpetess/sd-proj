@@ -1,5 +1,6 @@
 package fctreddit.impl.server.grpc;
 
+import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.JavaServer;
 import fctreddit.impl.server.rest.UsersServer;
 import fctreddit.impl.server.Discovery;
@@ -39,7 +40,7 @@ public class ContentServer {
         String keyStorePassword = System.getProperty("javax.net.ssl.keyStorePassword");
 
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-
+        SecretKeeper.getInstance().setSecret(args[args.length-1]);
         try (FileInputStream fis = new FileInputStream(keyStoreFileName)) {
             keyStore.load(fis, keyStorePassword.toCharArray());
         }

@@ -27,6 +27,7 @@ public interface RestContent {
 	public static final String USERID = "userId";
 	public static final String SORTBY = "sortBy";
 	public static final String TIMEOUT = "timeout";
+	public static final String SECRET = "secret";
 	/**
 	 * The following constants are the values that can be sent for the query parameter SORTBY
 	 **/
@@ -237,7 +238,7 @@ public interface RestContent {
 	 */
 	@DELETE
 	@Path("{" + USERID + "}/votes")
-	public Void removeAllUserVotes(@PathParam(USERID) String userId, @QueryParam(PASSWORD) String password);
+	public Void removeAllUserVotes(@PathParam(USERID) String userId, @QueryParam(PASSWORD) String password, @QueryParam(SECRET) String secret);
 
 	/**
 	 * Sets the authorId of the posts owned by this user to null.
@@ -248,6 +249,6 @@ public interface RestContent {
 	 */
 	@DELETE
 	@Path("{" + USERID + "}/posts" )
-	public Void updatePostOwner(@PathParam(USERID) String authorID, @QueryParam(PASSWORD) String password);
+	public Void updatePostOwner(@PathParam(USERID) String authorID, @QueryParam(PASSWORD) String password,@QueryParam(SECRET) String secret);
 
 }

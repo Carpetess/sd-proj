@@ -5,6 +5,7 @@ import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.rest.RestContent;
 import fctreddit.impl.client.ContentClient;
+import fctreddit.impl.server.SecretKeeper;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Invocation;
@@ -39,9 +40,10 @@ public class ContentRestClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> removeAllUserVotes(String userId, String password) {
+    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
         Invocation.Builder builder = target.path( userId ).path( "votes")
-                .queryParam(RestContent.PASSWORD, password).request();
+                .queryParam(RestContent.PASSWORD, password)
+                .queryParam(RestContent.SECRET,secret).request();
 
         Response r = executeOperation(builder::delete);
         int status = r.getStatus();
@@ -113,9 +115,10 @@ public class ContentRestClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> updatePostOwner(String authorId, String password) {
+    public Result<Void> updatePostOwner(String authorId, String password,String secret) {
         Invocation.Builder builder = target.path(authorId).path("posts")
-                .queryParam(RestContent.PASSWORD, password).request();
+                .queryParam(RestContent.PASSWORD, password)
+                .queryParam(RestContent.SECRET, secret).request();
 
         Response r = executeOperation(builder::delete);
 

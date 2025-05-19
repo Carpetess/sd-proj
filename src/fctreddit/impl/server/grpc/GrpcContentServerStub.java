@@ -2,6 +2,7 @@ package fctreddit.impl.server.grpc;
 
 import fctreddit.api.data.Post;
 import fctreddit.api.java.Result;
+import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.ContentJava;
 import fctreddit.impl.grpc.generated_java.ContentGrpc;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf;
@@ -132,7 +133,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void removeAllUserVotes(ContentProtoBuf.RemoveAllUserVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.removeAllUserVotes(request.getUserId(), request.getPassword());
+        Result<Void> res = impl.removeAllUserVotes(request.getUserId(), request.getPassword(),SecretKeeper.getInstance().getSecret());
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
@@ -141,7 +142,7 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void updatePostOwner(ContentProtoBuf.UpdatePostOwnerArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.updatePostOwner(request.getUserId(), request.getPassword());
+        Result<Void> res = impl.updatePostOwner(request.getUserId(), request.getPassword(), SecretKeeper.getInstance().getSecret());
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());

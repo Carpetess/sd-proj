@@ -7,6 +7,7 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.client.UsersClient;
 import fctreddit.impl.server.Hibernate;
+import fctreddit.impl.server.SecretKeeper;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -109,8 +110,8 @@ public class UsersJava extends JavaServer implements Users {
             if (!password.equals(user.getPassword())) {
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             }
-            contentClient.removeAllUserVotes(userId, password);
-            contentClient.updatePostOwner(userId, password);
+            contentClient.removeAllUserVotes(userId, password, SecretKeeper.getInstance().getSecret());
+            contentClient.updatePostOwner(userId, password, SecretKeeper.getInstance().getSecret());
             if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
                 imageClient.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
             }

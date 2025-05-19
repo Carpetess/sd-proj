@@ -6,6 +6,7 @@ import fctreddit.api.java.Result;
 import fctreddit.impl.client.ContentClient;
 import fctreddit.impl.grpc.generated_java.ContentGrpc;
 import fctreddit.impl.grpc.generated_java.ContentProtoBuf;
+import fctreddit.impl.server.SecretKeeper;
 import io.grpc.Channel;
 import io.grpc.LoadBalancerRegistry;
 import io.grpc.StatusRuntimeException;
@@ -13,6 +14,7 @@ import io.grpc.internal.PickFirstLoadBalancerProvider;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
+import org.apache.kafka.common.protocol.types.Field;
 
 import javax.net.ssl.TrustManagerFactory;
 import java.io.FileInputStream;
@@ -60,10 +62,10 @@ public class ContentGrpcClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> removeAllUserVotes(String userId, String password) {
+    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
         try {
             stub.removeAllUserVotes(ContentProtoBuf.RemoveAllUserVoteArgs.newBuilder()
-                    .setUserId(userId).setPassword(password).build());
+                    .setUserId(userId).setPassword(password).setSecret(secret).build());
             return Result.ok();
         } catch (StatusRuntimeException sre) {
             return Result.error(statusToErrorCode(sre.getStatus()));
@@ -131,10 +133,10 @@ public class ContentGrpcClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> updatePostOwner(String authorId, String password) {
+    public Result<Void> updatePostOwner(String authorId, String password,String secret) {
         try {
             stub.updatePostOwner(ContentProtoBuf.UpdatePostOwnerArgs.newBuilder()
-                    .setUserId(authorId).setPassword(password).build());
+                    .setUserId(authorId).setPassword(password).setSecret(secret).build());
             return Result.ok();
         } catch (StatusRuntimeException sre) {
             return Result.error(statusToErrorCode(sre.getStatus()));

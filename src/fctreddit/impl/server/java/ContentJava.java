@@ -8,6 +8,7 @@ import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.server.Hibernate;
+import fctreddit.impl.server.SecretKeeper;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -374,7 +375,10 @@ public class ContentJava extends JavaServer implements Content {
 
 
     @Override
-    public Result<Void> updatePostOwner(String userId, String password) {
+    public Result<Void> updatePostOwner(String userId, String password,String secret) {
+        if(!secret.equals(SecretKeeper.getInstance().getSecret())){
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+        }
         Log.info("Updating owner for user " + userId + "'s posts");
         Result<User> res = getUser(userId, password);
         if (!res.isOK())
@@ -393,7 +397,10 @@ public class ContentJava extends JavaServer implements Content {
     }
 
     @Override
-    public Result<Void> removeAllUserVotes(String userId, String password) {
+    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
+        if(!secret.equals(SecretKeeper.getInstance().getSecret())){
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+        }
         Log.info("Removing all votes for user " + userId);
         Result<User> res = getUser(userId, password);
         if (!res.isOK())
