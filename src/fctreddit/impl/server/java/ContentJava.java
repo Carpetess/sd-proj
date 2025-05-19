@@ -302,6 +302,7 @@ public class ContentJava extends JavaServer implements Content {
 
         try {
             hibernate.persistVote(tx, new Vote(userId, postId, false), p);
+            hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
@@ -340,6 +341,7 @@ public class ContentJava extends JavaServer implements Content {
 
         try {
             hibernate.deleteVote(tx, i.iterator().next(), p);
+            hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
