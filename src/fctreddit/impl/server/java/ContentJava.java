@@ -1,0 +1,446 @@
+package fctreddit.impl.server.java;
+
+import fctreddit.api.data.Post;
+import fctreddit.api.data.User;
+import fctreddit.api.data.Vote;
+import fctreddit.api.java.Content;
+import fctreddit.api.java.Image;
+import fctreddit.api.java.Result;
+import fctreddit.api.java.Users;
+import fctreddit.impl.server.Hibernate;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+
+
+public class ContentJava extends JavaServer implements Content {
+
+    private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
+
+    Logger Log = Logger.getLogger(ContentJava.class.getName());
+    private final Hibernate hibernate;
+
+    public ContentJava() {
+        hibernate = Hibernate.getInstance();
+    }
+
+    @Override
+    public Result<String> createPost(Post post, String userPassword) {
+        post.setPostId(UUID.randomUUID().toString());
+        post.setCreationTimestamp(System.currentTimeMillis());
+        if (!isValid(post))
+            return Result.error(Result.ErrorCode.BAD_REQUEST);
+
+
+        Result<User> user = getUser(post.getAuthorId(), userPassword);
+        if (!user.isOK())
+            return Result.error(user.error());
+
+        try {
+            if (post.getParentUrl() != null && !post.getParentUrl().isBlank()) {
+                String parentId = parseUrl(post.getParentUrl());
+                if (hibernate.get(Post.class, parentId) == null)
+                    return Result.error(Result.ErrorCode.NOT_FOUND);
+
+                lockMap.putIfAbsent(parentId, new Object());
+                Object lock = lockMap.get(parentId);
+                synchronized (lock) {
+                    hibernate.persist(post);
+                    lock.notifyAll();
+                }
+                lockMap.remove(parentId);
+            } else {
+                hibernate.persist(post);
+            }
+
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        return Result.ok(post.getPostId());
+    }
+
+    @Override
+    public Result<List<String>> getPosts(long timestamp, String sortOrder) {
+        if (sortOrder == null) {
+            sortOrder = "";
+        }
+
+        String commentCountQuery = "(SELECT COUNT(r) FROM Post r WHERE r.parentUrl LIKE CONCAT('%', p.postId))";
+
+        List<String> posts;
+        try {
+            switch (sortOrder) {
+                case MOST_UP_VOTES ->
+                        posts = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.creationTimestamp >= " + timestamp + " AND p.parentUrl IS NULL ORDER BY p.upVote DESC, p.postId ASC", String.class);
+                case MOST_REPLIES -> {
+                    posts = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.creationTimestamp >= " + timestamp + " AND p.parentUrl IS NULL ORDER BY " + commentCountQuery + " DESC,  p.postId ASC", String.class);
+                }
+                default ->
+                        posts = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.creationTimestamp >= " + timestamp + " AND p.parentUrl IS NULL ORDER BY p.creationTimestamp ASC", String.class);
+            }
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        Log.info("Found " + posts.size() + " posts");
+        return Result.ok(posts);
+    }
+
+    @Override
+    public Result<Post> getPost(String postId) {
+        Log.info("Getting post " + postId);
+        if (postId == null)
+            return Result.error(Result.ErrorCode.BAD_REQUEST);
+
+        Post post;
+        try {
+            post = hibernate.get(Post.class, postId);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        return Result.ok(post);
+    }
+
+    @Override
+    public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
+        List<Post> posts;
+        if (maxTimeout != 0) {
+            lockMap.putIfAbsent(postId, new Object());
+
+            Object lock = lockMap.get(postId);
+            synchronized (lock) {
+                try {
+                    lock.wait(maxTimeout);
+                } catch (InterruptedException e) {
+                    Log.severe(e.toString());
+                    return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+                }
+            }
+        }
+        try {
+            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        Log.info("::DDDDDDDDDDDDDD");
+        return Result.ok(posts.stream().map(Post::getPostId).toList());
+    }
+
+    @Override
+    public Result<Post> updatePost(String postId, String userPassword, Post post) {
+        Post oldPost = null;
+        try {
+            oldPost = hibernate.get(Post.class, postId);
+
+            if (oldPost == null) {
+                Log.severe("Post " + postId + " not found");
+                return Result.error(Result.ErrorCode.NOT_FOUND);
+            }
+
+            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.postId LIKE '" + postId + "'", Vote.class);
+            List<Post> comments = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
+
+            if (!comments.isEmpty() || !votes.isEmpty())
+                return Result.error(Result.ErrorCode.BAD_REQUEST);
+
+            update(post, oldPost);
+            Result<User> res = getUser(oldPost.getAuthorId(), userPassword);
+            if (!res.isOK())
+                return Result.error(res.error());
+            hibernate.update(oldPost);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        Log.info("Updating post " + postId);
+        return Result.ok(post);
+    }
+
+    @Override
+    public Result<Void> deletePost(String postId, String userPassword) {
+        try {
+            Users userClient = getUsersClient();
+            Image imageClient = getImageClient();
+            Post post = hibernate.get(Post.class, postId);
+
+            if (post == null)
+                return Result.error(Result.ErrorCode.NOT_FOUND);
+
+            Result<User> userRes = userClient.getUser(post.getAuthorId(), userPassword);
+            if (!userRes.isOK())
+                return Result.error(Result.ErrorCode.FORBIDDEN);
+            List<Post> toDelete = deletePostHelper(postId);
+            toDelete.add(post);
+            Log.info("Deleting " + toDelete.size() + " posts");
+            hibernate.deleteAll(toDelete);
+            if (post.getMediaUrl() != null)
+                imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
+
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+
+        return Result.ok();
+    }
+
+    private List<Post> deletePostHelper(String postId) {
+        List<Post> answers = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
+        List<Post> toDelete = new LinkedList<>(answers);
+        for (Post answer : answers) {
+            toDelete.addAll(deletePostHelper(answer.getPostId()));
+        }
+        return toDelete;
+    }
+
+
+    @Override
+    public Result<Void> upVotePost(String postId, String userId, String userPassword) {
+        Log.info("Executing upVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+
+        if (userPassword == null)
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+
+        Result<User> u = this.getUsersClient().getUser(userId, userPassword);
+        if (!u.isOK())
+            return Result.error(u.error());
+
+        Log.info("Retrieved user: " + u.value());
+
+        Hibernate.TX tx = hibernate.beginTransaction();
+
+        Post p = hibernate.get(tx, Post.class, postId);
+
+        if (p == null) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        }
+        p.setUpVote(p.getUpVote() + 1);
+
+        try {
+            hibernate.persist(tx, new Vote(userId, postId, true));
+            hibernate.update(tx, p);
+            hibernate.commitTransaction(tx);
+        } catch (Exception e) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.CONFLICT);
+        }
+
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Void> removeUpVotePost(String postId, String userId, String userPassword) {
+        Log.info("Executing removeUpVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+
+        if (userPassword == null)
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+
+        Result<User> u = this.getUsersClient().getUser(userId, userPassword);
+        if (!u.isOK())
+            return Result.error(u.error());
+
+        Log.info("Retrieved user: " + u.value());
+
+        Hibernate.TX tx = hibernate.beginTransaction();
+
+        List<Vote> i = hibernate.sql(tx, "SELECT * from Vote pv WHERE pv.userId='" + userId
+                + "' AND pv.postId='" + postId + "' AND pv.upVote='true'", Vote.class);
+        if (i.isEmpty()) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        }
+        Post p = hibernate.get(tx, Post.class, postId);
+        p.setUpVote(p.getUpVote() - 1);
+
+        try {
+            hibernate.delete(tx, i.iterator().next());
+            hibernate.update(tx, p);
+            hibernate.commitTransaction(tx);
+        } catch (Exception e) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Void> downVotePost(String postId, String userId, String userPassword) {
+        Log.info("Executing downVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+
+        if (userPassword == null)
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+
+        Result<User> u = this.getUsersClient().getUser(userId, userPassword);
+        if (!u.isOK())
+            return Result.error(u.error());
+
+        Log.info("Retrieved user: " + u.value());
+
+        Hibernate.TX tx = hibernate.beginTransaction();
+
+        Post p = hibernate.get(tx, Post.class, postId);
+
+        if (p == null) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        } else {
+            p.setDownVote(p.getDownVote() + 1);
+        }
+
+        try {
+            hibernate.persist(tx, new Vote(userId, postId, false));
+            hibernate.update(tx, p);
+            hibernate.commitTransaction(tx);
+        } catch (Exception e) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.CONFLICT);
+        }
+
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Void> removeDownVotePost(String postId, String userId, String userPassword) {
+        Log.info("Executing removeDownVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+
+        if (userPassword == null)
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+
+        Result<User> u = this.getUsersClient().getUser(userId, userPassword);
+        if (!u.isOK())
+            return Result.error(u.error());
+
+        Log.info("Retrieved user: " + u.value());
+
+        Hibernate.TX tx = hibernate.beginTransaction();
+
+        List<Vote> i = hibernate.sql(tx, "SELECT * from Vote pv WHERE pv.userId='" + userId
+                + "' AND pv.postId='" + postId + "' AND pv.upVote='false'", Vote.class);
+        if (i.isEmpty()) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        }
+        Post p = hibernate.get(tx, Post.class, postId);
+        p.setDownVote(p.getDownVote() - 1);
+
+        try {
+            hibernate.delete(tx, i.iterator().next());
+            hibernate.update(tx, p);
+            hibernate.commitTransaction(tx);
+        } catch (Exception e) {
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Integer> getupVotes(String postId) {
+        Post post;
+        try {
+            post = hibernate.get(Post.class, postId);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+
+        return Result.ok(post.getUpVote());
+    }
+
+    @Override
+    public Result<Integer> getDownVotes(String postId) {
+        Post post;
+        try {
+            post = hibernate.get(Post.class, postId);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        return Result.ok(post.getDownVote());
+    }
+
+
+    @Override
+    public Result<Void> updatePostOwner(String userId, String password) {
+        Log.info("Updating owner for user " + userId + "'s posts");
+        Result<User> res = getUser(userId, password);
+        if (!res.isOK())
+            return Result.error(res.error());
+        try {
+            List<Post> posts = hibernate.jpql("SELECT p FROM Post p WHERE p.authorId LIKE '" + userId + "'", Post.class);
+            for (Post post : posts) {
+                post.setAuthorId(null);
+            }
+            hibernate.updateAll(posts);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        return Result.ok();
+    }
+
+    @Override
+    public Result<Void> removeAllUserVotes(String userId, String password) {
+        Log.info("Removing all votes for user " + userId);
+        Result<User> res = getUser(userId, password);
+        if (!res.isOK())
+            return Result.error(res.error());
+        try {
+            List<Vote> votes = hibernate.jpql("SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
+            for (Vote vote : votes) {
+                Post post = hibernate.get(Post.class, vote.getPostId());
+                if (vote.isUpVote())
+                    post.setUpVote(post.getUpVote() - 1);
+
+                if (vote.isUpVote())
+                    post.setDownVote(post.getDownVote() - 1);
+
+                hibernate.update(post);
+
+            }
+            hibernate.deleteAll(votes);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        return Result.ok();
+    }
+
+    private Result<User> getUser(String userId, String password) {
+        Users userClient = getUsersClient();
+        return userClient.getUser(userId, password);
+    }
+
+    private boolean isValid(Post post) {
+        return post.getContent() != null && !post.getContent().isEmpty()
+                && post.getAuthorId() != null && !post.getAuthorId().isBlank();
+    }
+
+
+    private void update(Post newPost, Post oldPost) {
+        if (newPost.getContent() != null && !newPost.getContent().isBlank())
+            oldPost.setContent(newPost.getContent());
+        if (newPost.getMediaUrl() != null && !newPost.getMediaUrl().isBlank())
+            oldPost.setMediaUrl(newPost.getMediaUrl());
+    }
+
+    private String parseUrl(String url) {
+        String[] slice = url.split("/");
+        String imageId = slice[slice.length - 1];
+        return imageId;
+    }
+
+}
