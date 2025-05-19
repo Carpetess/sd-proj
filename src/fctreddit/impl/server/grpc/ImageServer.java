@@ -62,8 +62,8 @@ public class ImageServer {
         String serverURI = String.format(SERVER_URI_FMT, InetAddress.getLocalHost().getHostName(), PORT);
 
         discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
-        JavaServer.setDiscovery(discovery);
         discovery.start();
+        JavaServer.setDiscovery(discovery);
 
         Log.info(String.format("%s Server ready @ %s\n",  SERVICE, serverURI));
         server.start().awaitTermination();

@@ -35,8 +35,8 @@ public class UsersServer {
             String hostName = InetAddress.getLocalHost().getHostName();
             String serverURI = String.format(SERVER_URI_FMT, hostName, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
-            JavaServer.setDiscovery(discovery);
             discovery.start();
+            JavaServer.setDiscovery(discovery);
             JdkHttpServerFactory.createHttpServer( URI.create(serverURI), config, SSLContext.getDefault());
 
             Log.info(String.format("%s Server ready @ %s\n",  SERVICE, serverURI));

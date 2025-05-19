@@ -1,43 +1,43 @@
 USERS_REST_SERVER_MAINCLASS=fctreddit.impl.server.rest.UsersServer
 USERS_REST_PORT=8080
-USERS_REST_EXTRA_ARGS=
+USERS_REST_EXTRA_ARGS=boas
 IMAGE_REST_SERVER_MAINCLASS=fctreddit.impl.server.rest.ImageServer
 IMAGE_REST_PORT=8080
-IMAGE_REST_EXTRA_ARGS=
+IMAGE_REST_EXTRA_ARGS=boas
 CONTENT_REST_SERVER_MAINCLASS=fctreddit.impl.server.rest.ContentServer
 CONTENT_REST_PORT=8080
-CONTENT_REST_EXTRA_ARGS=
+CONTENT_REST_EXTRA_ARGS=boas
 USERS_GRPC_SERVER_MAINCLASS=fctreddit.impl.server.grpc.UsersServer
 USERS_GRPC_PORT=8081
-USERS_GRPC_EXTRA_ARGS=
+USERS_GRPC_EXTRA_ARGS=nao
 IMAGE_GRPC_SERVER_MAINCLASS=fctreddit.impl.server.grpc.ImageServer
 IMAGE_GRPC_PORT=8081
-IMAGE_GRPC_EXTRA_ARGS=
+IMAGE_GRPC_EXTRA_ARGS=sim
 CONTENT_GRPC_SERVER_MAINCLASS=fctreddit.impl.server.grpc.ContentServer
 CONTENT_GRPC_PORT=8081
-CONTENT_GRPC_EXTRA_ARGS=
+CONTENT_GRPC_EXTRA_ARGS=maybe
 DISCOVERY_MULTICAST_IP=226.226.226.226
 DISCOVERY_MULTICAST_PORT=2266
 
 CLIENT_TRUSTSTORE=truststore.ks,changeit
 USERS_KEYSTORES=users-1,users-1-server.ks,123456
-IMAGE_KEYSTORES=image-1,image-1-server.ks,123456,image-2,image-2-server.ks,123456
-CONTENT_KEYSTORES=content-1,content-1-server.ks,123456,content-2,content-2-server.ks,123456,content-3,content-3-server.ks,123456
+IMAGE_KEYSTORES=image-1,image-1-server.ks,123456 image-2,image-2-server.ks,123456
+CONTENT_KEYSTORES=content-1,content-1-server.ks,123456 content-2,content-2-server.ks,123456 content-3,content-3-server.ks,123456
 
-IMAGE_PROXY_MAINCLASS=<classe main do Proxy>
-IMAGE_PROXY_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao Proxy>
-IMAGE_PROXY_PORT=<porto do servidor Proxy>
-IMAGE_PROXY_PROTO=<tipo do servidor Proxy>; valores esperados: rest ou grpc
+IMAGE_PROXY_MAINCLASS=
+IMAGE_PROXY_EXTRA_ARGS=
+IMAGE_PROXY_PORT=
+IMAGE_PROXY_PROTO=
 
-USERS_REST_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao servidor Users REST>
-IMAGE_REST_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao servidor Image REST>
-CONTENT_REST_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao servidor Content REST>
+USERS_REST_EXTRA_ARGS=
+IMAGE_REST_EXTRA_ARGS=
+CONTENT_REST_EXTRA_ARGS=
 
-USERS_GRPC_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao servidor Users GRPC>
-IMAGE_GRPC_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao servidor Image GRPC>
-CONTENT_GRPC_EXTRA_ARGS=<eventais parâmetros adicionais a passar ao servidor Content GRPC>
+USERS_GRPC_EXTRA_ARGS=
+IMAGE_GRPC_EXTRA_ARGS=
+CONTENT_GRPC_EXTRA_ARGS=
 
-CONTENT_REP_SERVER_MAINCLASS=<classe main do servidor Content replicado>,
-CONTENT_REP_PORT=<porto do servidor Content replicado>,
-CONTENT_REP_EXTRA_ARGS_FIRST=<eventais parâmetros adicionais a passar ao servidor Content replicado que iniciará como primário, se aplicável>
-CONTENT_REP_EXTRA_ARGS_OTHER=<eventais parâmetros adicionais a passar aos servidores Content replicado secundários, se aplicável>
+CONTENT_REP_SERVER_MAINCLASS=
+CONTENT_REP_PORT=
+CONTENT_REP_EXTRA_ARGS_FIRST=
+CONTENT_REP_EXTRA_ARGS_OTHER=
