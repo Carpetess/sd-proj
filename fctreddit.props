@@ -24,9 +24,9 @@ USERS_KEYSTORES=users,users-server.ks,123456
 IMAGE_KEYSTORES=image1,image1-server.ks,123456 image2,image2-server.ks,123456
 CONTENT_KEYSTORES=content1,content1-server.ks,123456 content2,content2-server.ks,123456 content3,content3-server.ks,123456
 
-IMAGE_PROXY_MAINCLASS=
+IMAGE_PROXY_MAINCLASS=fctreddit.impl.server.rest.ImageProxyServer
 IMAGE_PROXY_EXTRA_ARGS=
-IMAGE_PROXY_PORT=
+IMAGE_PROXY_PORT=8082
 IMAGE_PROXY_PROTO=
 
 CONTENT_REP_SERVER_MAINCLASS=
