@@ -2,7 +2,7 @@ package fctreddit.impl.server.rest;
 
 import fctreddit.api.java.Result;
 import fctreddit.api.rest.RestImage;
-import fctreddit.impl.server.java.ImageProxy.ImageProxy;
+import fctreddit.impl.server.java.ImageProxy.ImageProxyJava;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.io.IOException;
@@ -13,7 +13,7 @@ import static fctreddit.impl.server.rest.ErrorParser.errorCodeToStatus;
 
 public class ImageProxyResource implements RestImage {
     private Logger Log = Logger.getLogger(String.valueOf(ImageProxyResource.class));
-    private ImageProxy impl;
+    private ImageProxyJava impl;
 
     @Override
     public String createImage(String userId, byte[] imageContents, String password) {

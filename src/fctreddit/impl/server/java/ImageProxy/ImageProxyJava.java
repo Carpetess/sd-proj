@@ -8,22 +8,18 @@ import com.github.scribejava.core.model.OAuthRequest;
 import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
-import com.google.common.io.Files;
 import com.google.gson.Gson;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.impl.server.java.JavaServer;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 import static fctreddit.impl.server.APISecrets.*;
 
 
-public class ImageProxy extends JavaServer implements Image {
+public class ImageProxyJava extends JavaServer implements Image {
 
     public static final String ALBUM_ID = "FCT Reddit";
     public static final String ALBUM_DESCRIPTION = "Images of the FCT Reddit subreddit";
@@ -36,7 +32,6 @@ public class ImageProxy extends JavaServer implements Image {
     private static final String DELETE_ALBUM = "https://api.imgur.com/3/album/%s";
     // album-hash
     private static final String ALBUM_IMAGES = "https://api.imgur.com/3/album/%s/images";
-
     // album-hash -> image-hash
     private static final String GET_ALBUM_IMAGE = "https://api.imgur.com/3/album/%s/image/%s";
     // album-hash
@@ -54,9 +49,9 @@ public class ImageProxy extends JavaServer implements Image {
     private final Gson json;
     private final OAuth20Service service;
     private final OAuth2AccessToken accessToken;
-    private Logger Log = Logger.getLogger(String.valueOf(ImageProxy.class.getName()));
+    private Logger Log = Logger.getLogger(String.valueOf(ImageProxyJava.class.getName()));
 
-    public ImageProxy() {
+    public ImageProxyJava() {
         super();
         json = new Gson();
         accessToken = new OAuth2AccessToken(accessTokenStr);
@@ -211,7 +206,26 @@ public class ImageProxy extends JavaServer implements Image {
     }
 
     public Result<Void> deleteAlbum() {
-        OAuthRequest request = new OAuthRequest(Verb.POST, DELETE_ALBUM);
+        OAuthRequest getAlbumImages = new OAuthRequest(Verb.GET, ALBUM_IMAGES.replace("%s", ALBUM_ID));
+        getAlbumImages.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+
+        service.signRequest(accessToken, getAlbumImages);
+        try{
+            Response r = service.execute(getAlbumImages);
+
+            if(r.getCode() != HTTP_SUCCESS) {
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+            }
+                BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
+                Log.info("Contents of Body: " + r.getBody());
+                Log.info("Operation Succedded\nAlbum name: " + ALBUM_ID + "\nAlbum ID: " + body.getData().get("id"));
+
+        } catch (Exception e) {
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+    }
+    private Result<Void> getAlbumImages() {
         return Result.ok();
     }
 }
