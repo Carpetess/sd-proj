@@ -33,7 +33,7 @@ public class ImageServer {
     public static int PORT = 8081;
     public static final String SERVICE = "Image";
     private static final String SERVER_URI_FMT = "http://%s:%s/grpc";
-    public static String serverURI;
+    private static String serverURI;
 
 
     public static void main(String[] args) throws Exception {
@@ -67,5 +67,8 @@ public class ImageServer {
 
         Log.info(String.format("%s Server ready @ %s\n",  SERVICE, serverURI));
         server.start().awaitTermination();
+    }
+    public static String getServerURI() {
+        return serverURI;
     }
 }

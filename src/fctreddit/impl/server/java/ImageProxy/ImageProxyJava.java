@@ -9,10 +9,15 @@ import com.github.scribejava.core.model.Response;
 import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth20Service;
 import com.google.gson.Gson;
+import fctreddit.api.data.User;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.impl.server.java.JavaServer;
+import fctreddit.impl.server.rest.ImageProxyServer;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -21,15 +26,9 @@ import static fctreddit.impl.server.APISecrets.*;
 
 public class ImageProxyJava extends JavaServer implements Image {
 
-    public static final String ALBUM_ID = "FCT Reddit";
-    public static final String ALBUM_DESCRIPTION = "Images of the FCT Reddit subreddit";
-    public static final String ALBUM_COVER_IMAGE_URL = "https://i.imgur.com/0000000.jpg";
-    public static final String ALBUM_COVER_IMAGE_ID = "0000000";
 
     // album-hash
     private static final String CREATE_ALBUM_URL = "https://api.imgur.com/3/album";
-    // album-hash
-    private static final String DELETE_ALBUM = "https://api.imgur.com/3/album/%s";
     // album-hash
     private static final String ALBUM_IMAGES = "https://api.imgur.com/3/album/%s/images";
     // album-hash -> image-hash
@@ -40,7 +39,10 @@ public class ImageProxyJava extends JavaServer implements Image {
     private static final String UPLOAD_IMAGE = "https://api.imgur.com/3/image";
     // image-hash
     private static final String DELETE_IMAGE = "https://api.imgur.com/3/image/%s";
+    // album-hash
+    private static final String GET_ALBUM = "https://api.imgur.com/3/account/Carpetesss/album/%s";
 
+    private static final String GET_ALBUMS = "https://api.imgur.com/3/account/Carpetesss/albums/";
 
     private static final int HTTP_SUCCESS = 200;
     private static final String CONTENT_TYPE_HDR = "Content-Type";
@@ -50,9 +52,11 @@ public class ImageProxyJava extends JavaServer implements Image {
     private final OAuth20Service service;
     private final OAuth2AccessToken accessToken;
     private Logger Log = Logger.getLogger(String.valueOf(ImageProxyJava.class.getName()));
+    private String associatedAlbumId;
 
     public ImageProxyJava() {
         super();
+        associatedAlbumId = ImageProxyServer.getAssociatedAlbumId();
         json = new Gson();
         accessToken = new OAuth2AccessToken(accessTokenStr);
         service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(ImgurApi.instance());
@@ -62,38 +66,29 @@ public class ImageProxyJava extends JavaServer implements Image {
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
         UUID imageId = UUID.randomUUID();
         OAuthRequest request = new OAuthRequest(Verb.POST, UPLOAD_IMAGE);
-
-        String imageName = String.format(userId, "/", imageId);
+        String imageName = imageId.toString();
 
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-        request.setPayload(json.toJson(new ImageUploadArguments(imageContents, imageName)));
+        request.setPayload(json.toJson(new ImageUploadArguments(imageContents, imageName, userId)));
 
         service.signRequest(accessToken, request);
-
-        String imageURL = String.format("https://image-proxy:8082/rest/", imageName);
-
         try {
             Response r = service.execute(request);
-
             if (r.getCode() != HTTP_SUCCESS) {
-                //Operation failed
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
-                Result<Void> res = addImageToAlbum(imageId.toString(), imageContents);
+                Result<Void> res = addImageToAlbum(imageId.toString());
                 if (!res.isOK())
                     return Result.error(res.error());
-                //IMPLIES THAT THE IMAGE WAS UPLOADED AND ADDED TO THE ALBUM SUCCESSFULLY
-                return Result.ok(imageURL.toString());
+                return Result.ok(imageName);
             }
-
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
 
-    private Result<Void> addImageToAlbum(String imageId, byte[] imageContents) {
-        String requestURL = String.format(ADD_IMAGE_TO_ALBUM_URL, ALBUM_ID);
-
+    private Result<Void> addImageToAlbum(String imageId) {
+        String requestURL = String.format(ADD_IMAGE_TO_ALBUM_URL, associatedAlbumId);
         OAuthRequest request = new OAuthRequest(Verb.POST, requestURL);
 
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
@@ -106,7 +101,6 @@ public class ImageProxyJava extends JavaServer implements Image {
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             return Result.ok();
-
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
@@ -114,32 +108,14 @@ public class ImageProxyJava extends JavaServer implements Image {
 
     @Override
     public Result<byte[]> getImage(String userId, String imageId) {
-        String requestURL = String.format(GET_ALBUM_IMAGE, ALBUM_ID, imageId);
-
-        OAuthRequest request = new OAuthRequest(Verb.GET, requestURL);
-        service.signRequest(accessToken, request);
-
-        try {
-            Response r = service.execute(request);
-
-            if (r.getCode() != HTTP_SUCCESS) {
-                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
-                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-            }
-            Log.info("Contents of Body: " + r.getBody());
-            BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
-            for (Object key : body.getData().keySet()) {
-                Log.info(key + " -> " + body.getData().get(key));
-            }
-            return this.downloadImageBytes(body.getData().get("link").toString());
-        } catch (Exception e) {
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
+        Result<BasicResponse> res = getImageObject(userId, imageId);
+        if (!res.isOK())
+            return Result.error(res.error());
+        return this.downloadImageBytes(res.value().getData().get("link").toString());
     }
 
     private Result<byte[]> downloadImageBytes(String imageURL) {
         OAuthRequest request = new OAuthRequest(Verb.GET, imageURL);
-
         try {
             Response r = service.execute(request);
 
@@ -157,75 +133,176 @@ public class ImageProxyJava extends JavaServer implements Image {
         }
     }
 
+    private Result<BasicResponse> getImageObject(String userId, String imageId) {
+        String requestURL = String.format(GET_ALBUM_IMAGE, associatedAlbumId, imageId);
+        OAuthRequest request = new OAuthRequest(Verb.GET, requestURL);
+        service.signRequest(accessToken, request);
+        try {
+            Response r = service.execute(request);
+            if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("No image was found for user " + userId + " and image id " + imageId);
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+            }
+            Log.info("Contents of Body: " + r.getBody());
+            BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
+            if (body.getData().get("description") != userId)
+                return Result.error(Result.ErrorCode.NOT_FOUND);
+            return Result.ok(body);
+        } catch (Exception e) {
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
     @Override
     public Result<Void> deleteImage(String userId, String imageId, String password) {
-        String requestURL = String.format(DELETE_IMAGE, ALBUM_ID);
+        Result<User> userRes = getUsersClient().getUser(userId, password);
+        if (!userRes.isOK())
+            return Result.error(userRes.error());
+        Result<BasicResponse> imageRes = getImageObject(userId, imageId);
+        if (!imageRes.isOK())
+            return Result.error(imageRes.error());
 
-        OAuthRequest request = new OAuthRequest(Verb.POST, requestURL);
+        String requestURL = String.format(DELETE_IMAGE, imageId);
+        OAuthRequest request = new OAuthRequest(Verb.DELETE, requestURL);
 
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-        request.setPayload(json.toJson(new AddImagesToAlbumArguments(imageId)));
-
         service.signRequest(accessToken, request);
+
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             return Result.ok();
-
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
 
-    public Result<Void> createAlbum() {
-		OAuthRequest request = new OAuthRequest(Verb.POST, CREATE_ALBUM_URL);
 
-		request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-		request.setPayload(json.toJson(new CreateAlbumArguments(ALBUM_ID, ALBUM_ID)));
+    public Result<String> createAlbum(String hostname) {
+        Result<String> albumName = findAlbumName(hostname);
+        if (albumName.isOK())
+            return albumName;
 
-		service.signRequest(accessToken, request);
+        OAuthRequest request = new OAuthRequest(Verb.POST, CREATE_ALBUM_URL);
+        request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+        request.setPayload(json.toJson(new CreateAlbumArguments(hostname)));
+        service.signRequest(accessToken, request);
 
-		try {
-			Response r = service.execute(request);
-
-			if(r.getCode() != HTTP_SUCCESS) {
-				//Operation failed
-				Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
-				return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-			} else {
-				BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
-				Log.info("Contents of Body: " + r.getBody());
-				Log.info("Operation Succedded\nAlbum name: " + ALBUM_ID + "\nAlbum ID: " + body.getData().get("id"));
-                return Result.ok();
-			}
-		} catch (Exception e) {
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
-    }
-
-    public Result<Void> deleteAlbum() {
-        OAuthRequest getAlbumImages = new OAuthRequest(Verb.GET, ALBUM_IMAGES.replace("%s", ALBUM_ID));
-        getAlbumImages.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-
-        service.signRequest(accessToken, getAlbumImages);
-        try{
-            Response r = service.execute(getAlbumImages);
-
-            if(r.getCode() != HTTP_SUCCESS) {
+        try {
+            Response r = service.execute(request);
+            if (r.getCode() != HTTP_SUCCESS) {
                 Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-            }
+            } else {
                 BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
-                Log.info("Contents of Body: " + r.getBody());
-                Log.info("Operation Succedded\nAlbum name: " + ALBUM_ID + "\nAlbum ID: " + body.getData().get("id"));
+                String albumId = body.getData().get("id").toString();
+                return Result.ok(albumId);
+            }
+        } catch (Exception e) {
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
+    private Result<String> findAlbumName(String hostname) {
+        Result<List<String>> albums = getAllAlbums();
+        if (!albums.isOK())
+            return Result.error(albums.error());
+        for (String album : albums.value()) {
+            if (albumMatches(album, hostname).isOK())
+                return Result.ok(album);
+        }
+        return Result.error(Result.ErrorCode.NOT_FOUND);
+    }
+
+    private Result<List<String>> getAllAlbums() {
+        OAuthRequest getAllAlbums = new OAuthRequest(Verb.GET, GET_ALBUMS);
+        getAllAlbums.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+
+        service.signRequest(accessToken, getAllAlbums);
+
+        try {
+            Response r = service.execute(getAllAlbums);
+            if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+            } else {
+                BasicResponseArray body = json.fromJson(r.getBody(), BasicResponseArray.class);
+                return Result.ok((List<String>) body.getData());
+            }
 
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
-    private Result<Void> getAlbumImages() {
-        return Result.ok();
+
+    private Result<Void> albumMatches(String albumId, String albumName) {
+        OAuthRequest getAlbum = new OAuthRequest(Verb.GET, String.format(GET_ALBUM, albumId));
+        getAlbum.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+
+        service.signRequest(accessToken, getAlbum);
+
+        try {
+            Response r = service.execute(getAlbum);
+            if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+            } else {
+                BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
+                if (body.getData().get("title").equals(albumName))
+                    return Result.ok();
+                else
+                    return Result.error(Result.ErrorCode.NOT_FOUND);
+            }
+
+        } catch (Exception e) {
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+
+    }
+
+    public void deleteAlbum(String albumId) {
+        Result<List<String>> images = getAllAlbumImages(albumId);
+        if (!images.isOK()) {
+            images.error();
+            return;
+        }
+        List<OAuthRequest> deleteImages = new LinkedList<>();
+
+        for (String imageId : images.value()) {
+            OAuthRequest deleteImage = new OAuthRequest(Verb.DELETE, DELETE_IMAGE.replace("%s", imageId));
+            deleteImage.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+            deleteImages.add(deleteImage);
+        }
+        for (OAuthRequest deleteImage : deleteImages) {
+            new Thread(() -> {
+                try {
+                    service.execute(deleteImage);
+                } catch (Exception e) {
+                    // Do nothing
+                }
+            }
+            ).start();
+        }
+    }
+
+    private Result<List<String>> getAllAlbumImages(String albumId) {
+        OAuthRequest getAlbumImages = new OAuthRequest(Verb.GET, ALBUM_IMAGES.replace("%s", albumId));
+        getAlbumImages.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
+        service.signRequest(accessToken, getAlbumImages);
+
+        try {
+            Response r = service.execute(getAlbumImages);
+            if (r.getCode() != HTTP_SUCCESS) {
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+            } else {
+                List<String> body = json.fromJson(r.getBody(), BasicResponseArray.class).getData().stream()
+                        .map(value -> ((Map<?, ?>) value).get("id").toString()).toList();
+                return Result.ok(body);
+            }
+        } catch (Exception e) {
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
     }
 }

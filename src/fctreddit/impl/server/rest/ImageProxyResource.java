@@ -25,7 +25,7 @@ public class ImageProxyResource implements RestImage {
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
         }
-        URI finalURI = URI.create(ImageServer.serverURI.toString() + res.value());
+        URI finalURI = URI.create(ImageServer.getServerURI().toString() + res.value());
         return finalURI.toString();
     }
 

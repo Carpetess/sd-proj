@@ -2,6 +2,7 @@ package fctreddit.impl.server.rest;
 
 import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.java.ImageProxy.ImageProxyJava;
 import fctreddit.impl.server.java.JavaServer;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -9,6 +10,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import javax.net.ssl.SSLContext;
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.logging.Logger;
 
 public class ImageServer {
@@ -25,8 +27,7 @@ public class ImageServer {
     public static int PORT = 8080;
     public static final String SERVICE = "Image";
     private static final String SERVER_URI_FMT = "https://%s:%s/rest";
-    public static String serverURI;
-
+    private static String serverURI;
 
     public static void main(String[] args) {
         try {
@@ -44,6 +45,10 @@ public class ImageServer {
         } catch( Exception e) {
             Log.severe(e.getMessage());
         }
+    }
+
+    public static String getServerURI() {
+        return serverURI;
     }
 
 }

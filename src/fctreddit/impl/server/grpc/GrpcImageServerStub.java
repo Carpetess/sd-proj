@@ -27,7 +27,7 @@ public class GrpcImageServerStub implements ImageGrpc.AsyncService, BindableServ
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
 
-        URI finalURI = URI.create(ImageServer.serverURI + res.value());
+        URI finalURI = URI.create(ImageServer.getServerURI() + res.value());
         responseObserver.onNext(ImageProtoBuf.CreateImageResult.newBuilder().setImageId(finalURI.toString()).build());
         responseObserver.onCompleted();
     }
