@@ -15,17 +15,21 @@ public class ImageProxyResource implements RestImage {
     private Logger Log = Logger.getLogger(String.valueOf(ImageProxyResource.class));
     private ImageProxyJava impl;
 
+    public ImageProxyResource() {
+        impl = new ImageProxyJava();
+    }
+
     @Override
     public String createImage(String userId, byte[] imageContents, String password) {
 
         Log.info("createImage by user: " + userId);
 
         Result<String> res = impl.createImage(userId, imageContents, password);
-
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
         }
-        URI finalURI = URI.create(ImageServer.getServerURI().toString() + res.value());
+        Log.info(ImageProxyServer.getServerURI() + res.value()+ "\n");
+        URI finalURI = URI.create(ImageProxyServer.getServerURI() + res.value());
         return finalURI.toString();
     }
 

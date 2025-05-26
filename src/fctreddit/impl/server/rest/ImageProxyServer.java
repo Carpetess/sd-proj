@@ -13,6 +13,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.util.logging.Logger;
 
+import static java.lang.System.exit;
+
 public class ImageProxyServer {
 
 
@@ -65,11 +67,22 @@ public class ImageProxyServer {
     }
 
     private static void startImgurAlbum(boolean reboot) {
+        Log.info("Starting Imgur Album\n");
         ImageProxyJava impl = new ImageProxyJava();
+
         Result<String> res = impl.createAlbum(hostName);
+        Log.info("Imgur Album created with id: " + res.value() + "\n");
         associatedAlbumId = res.value();
-        if(reboot)
-            impl.deleteAlbum(associatedAlbumId);
+        if(reboot){
+            Log.info("Rebooting Imgur Album\n");
+            Result<Void> resDelete = impl.deleteAlbum(associatedAlbumId);
+            if (!resDelete.isOK()){
+                Log.severe("Failed to delete Imgur Album: " + resDelete.error());
+                exit(1);
+            }
+
+        }
+
 
     }
 }

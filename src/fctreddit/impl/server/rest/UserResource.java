@@ -17,7 +17,7 @@ public class UserResource implements RestUsers {
 
     final Users impl;
 
-    public UserResource() throws IOException {
+    public UserResource() {
         this.impl = new UsersJava();
     }
 

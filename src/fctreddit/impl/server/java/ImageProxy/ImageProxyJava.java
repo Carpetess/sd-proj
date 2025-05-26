@@ -26,6 +26,7 @@ import static fctreddit.impl.server.APISecrets.*;
 
 public class ImageProxyJava extends JavaServer implements Image {
 
+    private static final String USERNAME = "Carpetesss";
 
     // album-hash
     private static final String CREATE_ALBUM_URL = "https://api.imgur.com/3/album";
@@ -40,9 +41,9 @@ public class ImageProxyJava extends JavaServer implements Image {
     // image-hash
     private static final String DELETE_IMAGE = "https://api.imgur.com/3/image/%s";
     // album-hash
-    private static final String GET_ALBUM = "https://api.imgur.com/3/account/Carpetesss/album/%s";
+    private static final String GET_ALBUM = "https://api.imgur.com/3/account/" + USERNAME + "/album/%s";
 
-    private static final String GET_ALBUMS = "https://api.imgur.com/3/account/Carpetesss/albums/";
+    private static final String GET_ALBUMS = "https://api.imgur.com/3/account/" + USERNAME + "/albums/";
 
     private static final int HTTP_SUCCESS = 200;
     private static final String CONTENT_TYPE_HDR = "Content-Type";
@@ -64,9 +65,9 @@ public class ImageProxyJava extends JavaServer implements Image {
 
     @Override
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
-        UUID imageId = UUID.randomUUID();
+        Log.info("Creating image for user " + userId + "\n");
         OAuthRequest request = new OAuthRequest(Verb.POST, UPLOAD_IMAGE);
-        String imageName = imageId.toString();
+        String imageName = UUID.randomUUID().toString();
 
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
         request.setPayload(json.toJson(new ImageUploadArguments(imageContents, imageName, userId)));
@@ -77,10 +78,14 @@ public class ImageProxyJava extends JavaServer implements Image {
             if (r.getCode() != HTTP_SUCCESS) {
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
-                Result<Void> res = addImageToAlbum(imageId.toString());
+                BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
+                String imageId = body.getData().get("id").toString();
+                Log.info("Image was uploaded\n");
+                Result<Void> res = addImageToAlbum(imageId);
                 if (!res.isOK())
                     return Result.error(res.error());
-                return Result.ok(imageName);
+                Log.info("Image was added to album " + associatedAlbumId + "\n");
+                return Result.ok(String.format("/image/%s/%s", userId, imageId));
             }
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -88,6 +93,7 @@ public class ImageProxyJava extends JavaServer implements Image {
     }
 
     private Result<Void> addImageToAlbum(String imageId) {
+        Log.info("Adding image "+ imageId +" to album " + associatedAlbumId + "\n");
         String requestURL = String.format(ADD_IMAGE_TO_ALBUM_URL, associatedAlbumId);
         OAuthRequest request = new OAuthRequest(Verb.POST, requestURL);
 
@@ -181,10 +187,13 @@ public class ImageProxyJava extends JavaServer implements Image {
 
 
     public Result<String> createAlbum(String hostname) {
+        Log.info("Creating album for host " + hostname + "\n");
         Result<String> albumName = findAlbumName(hostname);
-        if (albumName.isOK())
+        if (albumName.isOK()){
+            Log.info("Album already exists for host " + hostname);
             return albumName;
-
+        }
+        Log.info("Album does not exist for host " + hostname);
         OAuthRequest request = new OAuthRequest(Verb.POST, CREATE_ALBUM_URL);
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
         request.setPayload(json.toJson(new CreateAlbumArguments(hostname)));
@@ -206,17 +215,23 @@ public class ImageProxyJava extends JavaServer implements Image {
     }
 
     private Result<String> findAlbumName(String hostname) {
+        Log.info("Check if album already exist\n");
         Result<List<String>> albums = getAllAlbums();
-        if (!albums.isOK())
+        if (!albums.isOK()){
+            Log.info("Error getting albums\n");
             return Result.error(albums.error());
+        }
         for (String album : albums.value()) {
-            if (albumMatches(album, hostname).isOK())
+            if (albumMatches(album, hostname).isOK()){
+                Log.info("Found album " + album + "\n");
                 return Result.ok(album);
+            }
         }
         return Result.error(Result.ErrorCode.NOT_FOUND);
     }
 
     private Result<List<String>> getAllAlbums() {
+        Log.info("Getting all albums\n");
         OAuthRequest getAllAlbums = new OAuthRequest(Verb.GET, GET_ALBUMS);
         getAllAlbums.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
 
@@ -229,9 +244,9 @@ public class ImageProxyJava extends JavaServer implements Image {
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
                 BasicResponseArray body = json.fromJson(r.getBody(), BasicResponseArray.class);
-                return Result.ok((List<String>) body.getData());
+                List<String> result = body.getData().stream().map(value -> ((Map<?, ?>) value).get("id").toString()).toList();
+                return Result.ok(result);
             }
-
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
@@ -262,11 +277,11 @@ public class ImageProxyJava extends JavaServer implements Image {
 
     }
 
-    public void deleteAlbum(String albumId) {
+    public Result<Void> deleteAlbum(String albumId) {
+        Log.info("Deleting album " + albumId + "\n");
         Result<List<String>> images = getAllAlbumImages(albumId);
         if (!images.isOK()) {
-            images.error();
-            return;
+            return Result.error(images.error());
         }
         List<OAuthRequest> deleteImages = new LinkedList<>();
 
@@ -274,17 +289,17 @@ public class ImageProxyJava extends JavaServer implements Image {
             OAuthRequest deleteImage = new OAuthRequest(Verb.DELETE, DELETE_IMAGE.replace("%s", imageId));
             deleteImage.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
             deleteImages.add(deleteImage);
+            service.signRequest(accessToken, deleteImage);
         }
         for (OAuthRequest deleteImage : deleteImages) {
-            new Thread(() -> {
+            Log.info("Deleting image " + deleteImage.getUrl() + "\n");
                 try {
                     service.execute(deleteImage);
                 } catch (Exception e) {
-                    // Do nothing
+                    Log.severe("AAAAAAAAAAAAAAAA\n");
                 }
-            }
-            ).start();
         }
+        return Result.ok();
     }
 
     private Result<List<String>> getAllAlbumImages(String albumId) {
@@ -297,9 +312,9 @@ public class ImageProxyJava extends JavaServer implements Image {
             if (r.getCode() != HTTP_SUCCESS) {
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
-                List<String> body = json.fromJson(r.getBody(), BasicResponseArray.class).getData().stream()
+                List<String> listOfIds = json.fromJson(r.getBody(), BasicResponseArray.class).getData().stream()
                         .map(value -> ((Map<?, ?>) value).get("id").toString()).toList();
-                return Result.ok(body);
+                return Result.ok(listOfIds);
             }
         } catch (Exception e) {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
