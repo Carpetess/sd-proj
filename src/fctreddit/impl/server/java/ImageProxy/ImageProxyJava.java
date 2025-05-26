@@ -145,7 +145,7 @@ public class ImageProxyJava extends JavaServer implements Image {
             }
             Log.info("Contents of Body: " + r.getBody());
             BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
-            if (body.getData().get("description") != userId)
+            if (!body.getData().get("description").toString().equals(userId))
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             return Result.ok(body);
         } catch (Exception e) {
