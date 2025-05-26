@@ -75,11 +75,7 @@ public class ImageProxyServer {
         associatedAlbumId = res.value();
         if(reboot){
             Log.info("Rebooting Imgur Album\n");
-            Result<Void> resDelete = impl.deleteAlbum(associatedAlbumId);
-            if (!resDelete.isOK()){
-                Log.severe("Failed to delete Imgur Album: " + resDelete.error());
-                exit(1);
-            }
+            impl.deleteAlbum(associatedAlbumId);
 
         }
 

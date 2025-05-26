@@ -88,6 +88,7 @@ public class ImageProxyJava extends JavaServer implements Image {
                 return Result.ok(String.format("/image/%s/%s", userId, imageId));
             }
         } catch (Exception e) {
+            Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -293,11 +294,13 @@ public class ImageProxyJava extends JavaServer implements Image {
         }
         for (OAuthRequest deleteImage : deleteImages) {
             Log.info("Deleting image " + deleteImage.getUrl() + "\n");
+            new Thread ( () -> {
                 try {
                     service.execute(deleteImage);
                 } catch (Exception e) {
                     Log.severe("AAAAAAAAAAAAAAAA\n");
                 }
+            }).start();
         }
         return Result.ok();
     }
