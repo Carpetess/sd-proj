@@ -42,12 +42,12 @@ public class ImageProxyServer {
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ImageProxyResource.class);
+            startImgurAlbum(reboot);
             SecretKeeper.getInstance().setSecret(args[args.length - 1]);
             hostName = InetAddress.getLocalHost().getHostName();
             serverURI = String.format(SERVER_URI_FMT, hostName, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
             discovery.start();
-            startImgurAlbum(reboot);
             JavaServer.setDiscovery(discovery);
             JdkHttpServerFactory.createHttpServer(URI.create(serverURI), config, SSLContext.getDefault());
 

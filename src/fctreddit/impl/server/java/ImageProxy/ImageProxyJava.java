@@ -298,7 +298,7 @@ public class ImageProxyJava extends JavaServer implements Image {
                 try {
                     service.execute(deleteImage);
                 } catch (Exception e) {
-                    Log.severe("AAAAAAAAAAAAAAAA\n");
+                    // Do nothing
                 }
             }).start();
         }

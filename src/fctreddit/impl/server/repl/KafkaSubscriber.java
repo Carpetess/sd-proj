@@ -63,12 +63,10 @@ public class KafkaSubscriber {
 		new Thread( () -> {
 			for (;;) {
 				ConsumerRecords<String,String> records = consumer.poll(Duration.ofSeconds(POLL_TIMEOUT));
-				Iterator<ConsumerRecord<String,String>> iterator = records.iterator();
-				
-				while(iterator.hasNext()) {
-					ConsumerRecord<String,String> r = iterator.next();
-					recordProcessor.onReceive(r);
-				}
+
+                for (ConsumerRecord<String, String> r : records) {
+                    recordProcessor.onReceive(r);
+                }
 			}
 		}).start();
 	}

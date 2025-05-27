@@ -31,6 +31,10 @@ public class ContentJava extends JavaServer implements Content {
         post.setPostId(UUID.randomUUID().toString());
         post.setCreationTimestamp(System.currentTimeMillis());
 
+        return createPostGeneric(post, userPassword);
+    }
+
+    private Result<String> createPostGeneric(Post post, String userPassword) {
         if (!isValid(post))
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         Result<User> user = getUser(post.getAuthorId(), userPassword);
