@@ -76,7 +76,6 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
-                Log.warning(r.getCode()+ " BBB");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
                 BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);

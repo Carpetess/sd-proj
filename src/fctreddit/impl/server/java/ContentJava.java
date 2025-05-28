@@ -30,14 +30,16 @@ public class ContentJava extends JavaServer implements Content {
     public Result<String> createPost(Post post, String userPassword) {
         post.setPostId(UUID.randomUUID().toString());
         post.setCreationTimestamp(System.currentTimeMillis());
+
+        return createPostGeneric(post, userPassword);
+    }
+
+    private Result<String> createPostGeneric(Post post, String userPassword) {
         if (!isValid(post))
             return Result.error(Result.ErrorCode.BAD_REQUEST);
-
-
         Result<User> user = getUser(post.getAuthorId(), userPassword);
         if (!user.isOK())
             return Result.error(user.error());
-
         try {
             if (post.getParentUrl() != null && !post.getParentUrl().isBlank()) {
                 String parentId = parseUrl(post.getParentUrl());
@@ -129,7 +131,6 @@ public class ContentJava extends JavaServer implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        Log.info("::DDDDDDDDDDDDDD");
         return Result.ok(posts.stream().map(Post::getPostId).toList());
     }
 
