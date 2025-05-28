@@ -21,7 +21,7 @@ public class ImageResource implements RestImage {
 
     @Override
     public String createImage(String userId, byte[] imageContents, String password) {
-        Log.info("createImage by user: " + userId);
+        Log.info("createImage by user: " + userId + "\n");
 
         Result<String> res = impl.createImage(userId, imageContents, password);
 
@@ -34,7 +34,7 @@ public class ImageResource implements RestImage {
 
     @Override
     public byte[] getImage(String userId, String imageId) {
-        Log.info("getImage of user: " + userId);
+        Log.info("getImage of user: " + userId + "\n");
 
         Result<byte[]> res = impl.getImage(userId, imageId);
 
@@ -46,7 +46,7 @@ public class ImageResource implements RestImage {
 
     @Override
     public void deleteImage(String userId, String imageId, String password) throws IOException {
-        Log.info("deleteImage by user: " + userId);
+        Log.info("deleteImage by user: " + userId + "\n");
 
         Result<Void> res = impl.deleteImage(userId, imageId, password);
 

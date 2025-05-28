@@ -26,6 +26,7 @@ public class UsersJava extends JavaServer implements Users {
 
     @Override
     public Result<String> createUser(User user) {
+        Log.info("Creating user " + user.getUserId() + "\n");
         Hibernate hibernate = Hibernate.getInstance();
         try {
             if (user == null || !user.canBuild()) {
@@ -36,8 +37,7 @@ public class UsersJava extends JavaServer implements Users {
             }
             hibernate.persist(user);
         } catch (Exception e) {
-            e.printStackTrace();
-            Log.severe("Exception persisting user " + user.getUserId());
+            Log.severe(e + "Exception persisting user " + user.getUserId() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(user.getUserId());
@@ -45,7 +45,7 @@ public class UsersJava extends JavaServer implements Users {
 
     @Override
     public Result<User> getUser(String userId, String password) {
-        Log.info("Getting user " + userId);
+        Log.info("Getting user " + userId + "\n");
         if (userId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
@@ -54,15 +54,15 @@ public class UsersJava extends JavaServer implements Users {
             user = hibernate.get(User.class, userId);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.severe("Exception getting user " + userId);
+            Log.severe("Exception getting user " + userId + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         if (user == null) {
-            Log.info("User " + userId + " not found");
+            Log.info("User " + userId + " not found \n");
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
         if ( password == null || !password.equals(user.getPassword())) {
-            Log.info("Passwords don't match for user " + userId);
+            Log.info("Passwords don't match for user " + userId + "\n");
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
         return Result.ok(user);
@@ -70,22 +70,28 @@ public class UsersJava extends JavaServer implements Users {
 
     @Override
     public Result<User> updateUser(String userId, String password, User user) {
+        Log.info("Updating user " + userId + "\n");
         if (userId == null || password == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
 
         User oldUser;
         try {
             oldUser= hibernate.get(User.class, userId);
-            if (oldUser == null)
+            if (oldUser == null){
+                Log.severe("User " + userId + " could not be updated \n");
                 return Result.error(Result.ErrorCode.NOT_FOUND);
-            if (!password.equals(oldUser.getPassword()))
+            }
+            if (!password.equals(oldUser.getPassword())){
+                Log.severe("User " + userId + " could not be updated \n");
                 return Result.error(Result.ErrorCode.FORBIDDEN);
+            }
             if (!oldUser.canUpdateUser(user)) {
-                Log.severe("User " + userId + " could not be updated");
+                Log.severe("User " + userId + " could not be updated \n");
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
             }
             oldUser.updateUser(user);
             hibernate.update(oldUser);
+            Log.info("User " + userId + " updated \n");
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -119,7 +125,7 @@ public class UsersJava extends JavaServer implements Users {
             hibernate.delete(user);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.severe("Exception deleting user " + userId);
+            Log.severe("Exception deleting user " + userId + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(user);
@@ -127,7 +133,8 @@ public class UsersJava extends JavaServer implements Users {
 
     @Override
     public Result<List<User>> searchUsers(String pattern) {
-        List<User> users = new LinkedList<>();
+        Log.info("Searching users for pattern " + pattern + "\n");
+        List<User> users;
         try {
             users = hibernate.jpql("SELECT u FROM User u WHERE u.userId LIKE '%" + pattern + "%'", User.class);
         } catch (Exception e) {

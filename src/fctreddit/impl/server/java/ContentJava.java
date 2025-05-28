@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 
 public class ContentJava extends JavaServer implements Content {
 
+
     private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
@@ -28,6 +29,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<String> createPost(Post post, String userPassword) {
+        Log.info("Creating post " + post.getPostId() + "\n");
         post.setPostId(UUID.randomUUID().toString());
         post.setCreationTimestamp(System.currentTimeMillis());
 
@@ -35,6 +37,7 @@ public class ContentJava extends JavaServer implements Content {
     }
 
     private Result<String> createPostGeneric(Post post, String userPassword) {
+        Log.info("Writing the post to the database" + post.getPostId() + "\n");
         if (!isValid(post))
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         Result<User> user = getUser(post.getAuthorId(), userPassword);
@@ -58,7 +61,7 @@ public class ContentJava extends JavaServer implements Content {
             }
 
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.severe(e + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(post.getPostId());
@@ -66,12 +69,11 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<List<String>> getPosts(long timestamp, String sortOrder) {
+        Log.info("Getting posts since " + timestamp + "\n");
         if (sortOrder == null) {
             sortOrder = "";
         }
-
         String commentCountQuery = "(SELECT COUNT(r) FROM Post r WHERE r.parentUrl LIKE CONCAT('%', p.postId))";
-
         List<String> posts;
         try {
             switch (sortOrder) {
@@ -93,10 +95,9 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Post> getPost(String postId) {
-        Log.info("Getting post " + postId);
+        Log.info("Getting post " + postId + "\n");
         if (postId == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
-
         Post post;
         try {
             post = hibernate.get(Post.class, postId);
@@ -111,6 +112,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
+        Log.info("Getting answers for post " + postId + "\n");
         List<Post> posts;
         if (maxTimeout != 0) {
             lockMap.putIfAbsent(postId, new Object());
@@ -128,7 +130,7 @@ public class ContentJava extends JavaServer implements Content {
         try {
             posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.severe(e + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(posts.stream().map(Post::getPostId).toList());
@@ -136,12 +138,13 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Post> updatePost(String postId, String userPassword, Post post) {
+        Log.info("Updating post " + postId + "\n");
         Post oldPost = null;
         try {
             oldPost = hibernate.get(Post.class, postId);
 
             if (oldPost == null) {
-                Log.severe("Post " + postId + " not found");
+                Log.severe("Post " + postId + " not found" + "\n");
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             }
 
@@ -157,7 +160,7 @@ public class ContentJava extends JavaServer implements Content {
                 return Result.error(res.error());
             hibernate.update(oldPost);
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.severe(e + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         Log.info("Updating post " + postId);
@@ -166,6 +169,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Void> deletePost(String postId, String userPassword) {
+        Log.info("Deleting post " + postId + "\n");
         try {
             Users userClient = getUsersClient();
             Image imageClient = getImageClient();
@@ -185,7 +189,7 @@ public class ContentJava extends JavaServer implements Content {
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
 
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.severe(e + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
 
@@ -204,7 +208,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Void> upVotePost(String postId, String userId, String userPassword) {
-        Log.info("Executing upVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+        Log.info("Executing upVote on " + postId + " with Userid:" + userId + " Password: " + userPassword + "\n");
 
         if (userPassword == null)
             return Result.error(Result.ErrorCode.FORBIDDEN);
@@ -213,7 +217,7 @@ public class ContentJava extends JavaServer implements Content {
         if (!u.isOK())
             return Result.error(u.error());
 
-        Log.info("Retrieved user: " + u.value());
+        Log.info("Retrieved user: " + u.value() + "\n");
 
         Hibernate.TX tx = hibernate.beginTransaction();
 
@@ -224,23 +228,20 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
         p.setUpVote(p.getUpVote() + 1);
-
-
         try {
             hibernate.persistVote(tx, new Vote(userId, postId, true), p);
-            Log.info("Persisted vote");
             hibernate.commitTransaction(tx);
+            Log.info("Persisted upvote " + userId + " " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
         }
-
         return Result.ok();
     }
 
     @Override
     public Result<Void> removeUpVotePost(String postId, String userId, String userPassword) {
-        Log.info("Executing removeUpVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+        Log.info("Executing removeUpVote on " + postId + " with Userid:" + userId + " Password: " + userPassword + "\n");
 
         if (userPassword == null)
             return Result.error(Result.ErrorCode.FORBIDDEN);
@@ -249,7 +250,7 @@ public class ContentJava extends JavaServer implements Content {
         if (!u.isOK())
             return Result.error(u.error());
 
-        Log.info("Retrieved user: " + u.value());
+        Log.info("Retrieved user: " + u.value() + "\n");
 
         Hibernate.TX tx = hibernate.beginTransaction();
 
@@ -269,6 +270,7 @@ public class ContentJava extends JavaServer implements Content {
         try {
             hibernate.deleteVote(tx, i.iterator().next(), p);
             hibernate.commitTransaction(tx);
+            Log.info("Removing upvote " + userId + " " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -279,7 +281,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Void> downVotePost(String postId, String userId, String userPassword) {
-        Log.info("Executing downVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+        Log.info("Executing downVote on " + postId + " with Userid:" + userId + " Password: " + userPassword + "\n");
 
         if (userPassword == null)
             return Result.error(Result.ErrorCode.FORBIDDEN);
@@ -288,7 +290,7 @@ public class ContentJava extends JavaServer implements Content {
         if (!u.isOK())
             return Result.error(u.error());
 
-        Log.info("Retrieved user: " + u.value());
+        Log.info("Retrieved user: " + u.value() + "\n");
 
         Hibernate.TX tx = hibernate.beginTransaction();
 
@@ -299,11 +301,11 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
             p.setDownVote(p.getDownVote() + 1);
-        Log.info("Updated post");
 
         try {
             hibernate.persistVote(tx, new Vote(userId, postId, false), p);
             hibernate.commitTransaction(tx);
+            Log.info("Downvoted post " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
@@ -314,7 +316,7 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Void> removeDownVotePost(String postId, String userId, String userPassword) {
-        Log.info("Executing removeDownVote on " + postId + " with Userid:" + userId + " Password: " + userPassword);
+        Log.info("Executing removeDownVote on " + postId + " with Userid:" + userId + " Password: " + userPassword + "\n");
 
         if (userPassword == null)
             return Result.error(Result.ErrorCode.FORBIDDEN);
@@ -323,7 +325,7 @@ public class ContentJava extends JavaServer implements Content {
         if (!u.isOK())
             return Result.error(u.error());
 
-        Log.info("Retrieved user: " + u.value());
+        Log.info("Retrieved user: " + u.value() + "\n");
 
         Hibernate.TX tx = hibernate.beginTransaction();
 
@@ -343,6 +345,7 @@ public class ContentJava extends JavaServer implements Content {
         try {
             hibernate.deleteVote(tx, i.iterator().next(), p);
             hibernate.commitTransaction(tx);
+            Log.info("Removed downvote " + userId + " " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);

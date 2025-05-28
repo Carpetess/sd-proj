@@ -25,7 +25,7 @@ public class UserResource implements RestUsers {
 
     @Override
     public String createUser(User user) {
-        Log.info("createUser : " + user.toString());
+        Log.info("createUser : " + user.toString() + "\n");
 
         Result<String> res = impl.createUser(user);
         if(!res.isOK()){
@@ -36,7 +36,7 @@ public class UserResource implements RestUsers {
 
     @Override
     public User getUser(String userId, String password) {
-        Log.info("getUser : " + userId);
+        Log.info("getUser : " + userId + "\n");
 
         Result<User> res = impl.getUser(userId, password);
         if(!res.isOK()){
@@ -48,7 +48,7 @@ public class UserResource implements RestUsers {
 
     @Override
     public User updateUser(String userId, String password, User user) {
-        Log.info("updateUser : " + userId);
+        Log.info("updateUser : " + userId + "\n");
         Result<User> res = impl.updateUser(userId, password, user);
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
@@ -58,7 +58,7 @@ public class UserResource implements RestUsers {
 
     @Override
     public User deleteUser(String userId, String password) {
-        Log.info("deleteUser : " + userId);
+        Log.info("deleteUser : " + userId + "\n");
         Result<User> res = impl.deleteUser(userId, password);
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
@@ -68,7 +68,7 @@ public class UserResource implements RestUsers {
 
     @Override
     public List<User> searchUsers(String pattern) {
-        Log.info("searchUsers : " + pattern);
+        Log.info("searchUsers : " + pattern + "\n");
         Result<List<User>> res = impl.searchUsers(pattern);
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
