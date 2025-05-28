@@ -76,6 +76,7 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
+                Log.warning(r.getCode()+ " BBB");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
                 BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
@@ -109,15 +110,19 @@ public class ImageProxyJava extends JavaServer implements Image {
             }
             return Result.ok();
         } catch (Exception e) {
+            Log.severe(e.toString() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
 
     @Override
     public Result<byte[]> getImage(String userId, String imageId) {
+        Log.info("Getting image " + imageId + "\n");
         Result<BasicResponse> res = getImageObject(userId, imageId);
-        if (!res.isOK())
+        if (!res.isOK()) {
+            Log.severe("Did not get image properly \n");
             return Result.error(res.error());
+        }
         return this.downloadImageBytes(res.value().getData().get("link").toString());
     }
 
@@ -127,15 +132,15 @@ public class ImageProxyJava extends JavaServer implements Image {
             Response r = service.execute(request);
 
             if (r.getCode() != HTTP_SUCCESS) {
-                Log.severe("Operation to download image bytes Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
+                Log.severe("Operation to download image bytes Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody() + "\n");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             byte[] imageContent = r.getStream().readAllBytes();
-            Log.info("Successfully downloaded " + imageContent.length + " bytes from the image.");
+            Log.info("Successfully downloaded " + imageContent.length + " bytes from the image.\n");
             return Result.ok(imageContent);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.severe("Failed to download image bytes");
+            Log.severe("Failed to download image bytes\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -147,15 +152,18 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
-                Log.severe("No image was found for user " + userId + " and image id " + imageId);
+                Log.severe("No image was found for user " + userId + " and image id " + imageId + "\n");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             Log.info("Contents of Body: " + r.getBody());
             BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
-            if (!body.getData().get("description").toString().equals(userId))
+            if (!body.getData().get("description").toString().equals(userId)) {
+                Log.severe("Image is not from specified user");
                 return Result.error(Result.ErrorCode.NOT_FOUND);
+            }
             return Result.ok(body);
         } catch (Exception e) {
+            Log.severe(e.toString()+ "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -163,25 +171,31 @@ public class ImageProxyJava extends JavaServer implements Image {
     @Override
     public Result<Void> deleteImage(String userId, String imageId, String password) {
         Result<User> userRes = getUsersClient().getUser(userId, password);
-        if (!userRes.isOK())
+        if (!userRes.isOK()) {
+            Log.severe("Result is not ok");
             return Result.error(userRes.error());
+        }
         Result<BasicResponse> imageRes = getImageObject(userId, imageId);
-        if (!imageRes.isOK())
+        if (!imageRes.isOK()) {
+            Log.severe("Result is not ok: " + imageRes.error()+ "\n");
             return Result.error(imageRes.error());
+        }
 
         String requestURL = String.format(DELETE_IMAGE, imageId);
         OAuthRequest request = new OAuthRequest(Verb.DELETE, requestURL);
 
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
         service.signRequest(accessToken, request);
-
+        Log.warning("AAA");
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("HTTP NOT SUSCEFULL");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             return Result.ok();
         } catch (Exception e) {
+            Log.severe(e.toString()+ "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -211,6 +225,7 @@ public class ImageProxyJava extends JavaServer implements Image {
                 return Result.ok(albumId);
             }
         } catch (Exception e) {
+            Log.severe(e.toString()+ "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -249,6 +264,7 @@ public class ImageProxyJava extends JavaServer implements Image {
                 return Result.ok(result);
             }
         } catch (Exception e) {
+            Log.severe(e.toString()+ "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -298,7 +314,7 @@ public class ImageProxyJava extends JavaServer implements Image {
                 try {
                     service.execute(deleteImage);
                 } catch (Exception e) {
-                    Log.severe("AAAAAAAAAAAAAAAA\n");
+                   Log.severe(e.toString()+ "\n");
                 }
             }).start();
         }
@@ -306,6 +322,7 @@ public class ImageProxyJava extends JavaServer implements Image {
     }
 
     private Result<List<String>> getAllAlbumImages(String albumId) {
+        Log.info("Getting all album images \n");
         OAuthRequest getAlbumImages = new OAuthRequest(Verb.GET, ALBUM_IMAGES.replace("%s", albumId));
         getAlbumImages.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
         service.signRequest(accessToken, getAlbumImages);
@@ -320,6 +337,7 @@ public class ImageProxyJava extends JavaServer implements Image {
                 return Result.ok(listOfIds);
             }
         } catch (Exception e) {
+            Log.severe(e.toString()+ "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
     }

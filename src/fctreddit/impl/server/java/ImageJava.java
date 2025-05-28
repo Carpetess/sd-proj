@@ -26,7 +26,7 @@ public class ImageJava extends JavaServer implements Image {
 
     @Override
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
-        Log.info("Creating image for user " + userId);
+        Log.info("Creating image for user " + userId + "\n");
         if (imageContents.length == 0 || password == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
 
@@ -34,7 +34,7 @@ public class ImageJava extends JavaServer implements Image {
         Result<User> user = usersClient.getUser(userId, password);
 
         if (!user.isOK()) {
-            Log.severe("User " + userId + " could not be authenticated");
+            Log.severe("User " + userId + " could not be authenticated \n");
             return Result.error(user.error());
         }
 
@@ -46,24 +46,24 @@ public class ImageJava extends JavaServer implements Image {
             Files.createFile(filePath);
             Files.write(filePath, imageContents);
         } catch (IOException e) {
-            Log.severe(e.toString());
+            Log.severe(e.toString() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
 
-        Log.info("Created image " + imageUUID.toString() + " for user " + userId);
+        Log.info("Created image " + imageUUID.toString() + " for user " + userId + "\n");
         URI image = URI.create("/image/" + userId + "/" + imageUUID.toString());
         return Result.ok(image.toString());
     }
 
     @Override
     public Result<byte[]> getImage(String userId, String imageId) {
-        Log.info("Getting image " + imageId + " for user " + userId);
+        Log.info("Getting image " + imageId + " for user " + userId + "\n");
 
         Path imagePath = Paths.get(PATH, userId, imageId);
         File imageFile = imagePath.toFile();
 
         if (!imageFile.exists()) {
-            Log.severe("Image not found for user " + userId + " and image id " + imageId + " in path " + imagePath.toString() + " or path does not exist.");
+            Log.severe("Image not found for user " + userId + " and image id " + imageId + " in path " + imagePath.toString() + " or path does not exist. \n");
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
 
@@ -71,7 +71,7 @@ public class ImageJava extends JavaServer implements Image {
             byte[] imageContent = Files.readAllBytes(imagePath);
             return Result.ok(imageContent);
         } catch (IOException e) {
-            Log.severe(e.toString());
+            Log.severe(e.toString() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
 
@@ -79,6 +79,7 @@ public class ImageJava extends JavaServer implements Image {
 
     @Override
     public Result<Void> deleteImage(String userId, String imageId, String password) {
+         Log.info("Deleting image " + imageId + " for user " + userId + "\n");
         if (password == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         Users userClient = getUsersClient();
@@ -92,8 +93,7 @@ public class ImageJava extends JavaServer implements Image {
         } catch (NoSuchFileException e) {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         } catch (Exception e) {
-            Log.severe(e.toString());
-            Log.severe("Exception deleting image " + imageId + " for user " + userId + " in path " + imagePath.toString());
+            Log.severe(e.toString()+ "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
 
