@@ -112,6 +112,7 @@ public class Hibernate {
         try {
             tx.session.remove(vote);
             tx.session.merge(post);
+            tx.tx.commit();
         } finally {
             tx.session.close();
         }

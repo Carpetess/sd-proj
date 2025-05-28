@@ -148,8 +148,7 @@ public class Discovery {
 					String msg = new String(pkt.getData(), 0, pkt.getLength());
 					String[] msgElems = msg.split(DELIMITER);
 					if (msgElems.length == 2) { // periodic announcement
-						System.out.printf("FROM %s (%s) : %s\n", pkt.getAddress().getHostName(),
-								pkt.getAddress().getHostAddress(), msg);
+						// System.out.printf("FROM %s (%s) : %s\n", pkt.getAddress().getHostName(), pkt.getAddress().getHostAddress(), msg);
 						addNewService(msgElems[0], URI.create(msgElems[1]));
 					}
 				} catch (IOException e) {

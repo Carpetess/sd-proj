@@ -230,7 +230,6 @@ public class ContentJava extends JavaServer implements Content {
         p.setUpVote(p.getUpVote() + 1);
         try {
             hibernate.persistVote(tx, new Vote(userId, postId, true), p);
-            hibernate.commitTransaction(tx);
             Log.info("Persisted upvote " + userId + " " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -269,7 +268,6 @@ public class ContentJava extends JavaServer implements Content {
 
         try {
             hibernate.deleteVote(tx, i.iterator().next(), p);
-            hibernate.commitTransaction(tx);
             Log.info("Removing upvote " + userId + " " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -297,6 +295,7 @@ public class ContentJava extends JavaServer implements Content {
         Post p = hibernate.get(tx, Post.class, postId);
 
         if (p == null) {
+            Log.severe("Post " + postId + " not found" + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
@@ -304,9 +303,9 @@ public class ContentJava extends JavaServer implements Content {
 
         try {
             hibernate.persistVote(tx, new Vote(userId, postId, false), p);
-            hibernate.commitTransaction(tx);
             Log.info("Downvoted post " + postId + "\n");
         } catch (Exception e) {
+            Log.severe(e + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
         }
@@ -344,7 +343,6 @@ public class ContentJava extends JavaServer implements Content {
 
         try {
             hibernate.deleteVote(tx, i.iterator().next(), p);
-            hibernate.commitTransaction(tx);
             Log.info("Removed downvote " + userId + " " + postId + "\n");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
