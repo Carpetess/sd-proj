@@ -31,7 +31,10 @@ public class ContentServer {
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ContentResource.class);
+            Log.info("Starting Content Server\n");
+            Log.info("Using Secret: " + args[args.length-1] + "\n");
             SecretKeeper.getInstance().setSecret(args[args.length-1]);
+            Log.info("Secret registered: " + SecretKeeper.getInstance().getSecret() + "\n");
             String hostName = InetAddress.getLocalHost().getHostName();
             String serverURI = String.format(SERVER_URI_FMT, hostName, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);

@@ -9,9 +9,7 @@ public class SecretKeeper {
              instance= new SecretKeeper();
         return instance;
     }
-    private SecretKeeper() {
-        secret=null;
-    }
+    private SecretKeeper() {}
 
     public void setSecret(String secret) {
         this.secret = secret;

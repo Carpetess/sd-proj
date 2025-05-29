@@ -407,6 +407,8 @@ public class ContentJava extends JavaServer implements Content {
     @Override
     public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
         Hibernate.TX tx = hibernate.beginTransaction();
+        Log.info("Removing all votes for user " + userId + "with secret: " + secret + " and this is my secret: "
+        + SecretKeeper.getInstance().getSecret() + "\n");
         if(!secret.equals(SecretKeeper.getInstance().getSecret())){
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }

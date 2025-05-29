@@ -34,7 +34,10 @@ public class ImageServer {
             ResourceConfig config = new ResourceConfig();
             config.register(ImageResource.class);
             SecretKeeper.getInstance().setSecret(args[args.length-1]);
+            Log.info("Starting Content Server\n");
+            Log.info("Using Secret: " + args[args.length-1] + "\n");
             String hostName = InetAddress.getLocalHost().getHostName();
+            Log.info("Secret registered: " + SecretKeeper.getInstance().getSecret() + "\n");
             serverURI = String.format(SERVER_URI_FMT, hostName, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
             discovery.start();
