@@ -9,6 +9,12 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.server.Hibernate;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.repl.KafkaPublisher;
+import fctreddit.impl.server.repl.KafkaSubscriber;
+import fctreddit.impl.server.repl.KafkaUtils;
+import fctreddit.impl.server.repl.RecordProcessor;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.internals.events.ListOffsetsEvent;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,8 +28,21 @@ public class ContentJava extends JavaServer implements Content {
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
     private final Hibernate hibernate;
+    private static KafkaSubscriber subscriber;
+    private static KafkaPublisher publisher;
 
     public ContentJava() {
+        synchronized (this){
+            if (subscriber == null) {
+                KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
+                subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+                startSubscriber(subscriber);
+            }
+            if (publisher == null) {
+                KafkaUtils.createTopic(Image.REFERENCE_COUNTER_TOPIC);
+                publisher = KafkaPublisher.createPublisher("kafka:9092");
+            }
+        }
         hibernate = Hibernate.getInstance();
     }
 
@@ -32,7 +51,9 @@ public class ContentJava extends JavaServer implements Content {
         Log.info("Creating post " + post.getPostId() + "\n");
         post.setPostId(UUID.randomUUID().toString());
         post.setCreationTimestamp(System.currentTimeMillis());
-
+        if (post.getMediaUrl() != null)
+            changeReferenceOfImage(post.getMediaUrl(), true);
+        // Enviar para as replicas
         return createPostGeneric(post, userPassword);
     }
 
@@ -154,6 +175,12 @@ public class ContentJava extends JavaServer implements Content {
             if (!comments.isEmpty() || !votes.isEmpty())
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
 
+            if (post.getMediaUrl() != null && !oldPost.getMediaUrl().equals(post.getMediaUrl())) {
+                if (oldPost.getMediaUrl() != null)
+                    changeReferenceOfImage(oldPost.getMediaUrl(), false);
+                changeReferenceOfImage(post.getMediaUrl(), true);
+            }
+
             update(post, oldPost);
             Result<User> res = getUser(oldPost.getAuthorId(), userPassword);
             if (!res.isOK())
@@ -182,6 +209,13 @@ public class ContentJava extends JavaServer implements Content {
             if (!userRes.isOK())
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             List<Post> toDelete = deletePostHelper(postId);
+            if (toDelete.isEmpty()){
+                for (Post p : toDelete) {
+                    Log.info("Deleting post " + p.getPostId());
+                    changeReferenceOfImage(p.getMediaUrl(), false);
+                }
+                return Result.ok();
+            }
             toDelete.add(post);
             Log.info("Deleting " + toDelete.size() + " posts");
             hibernate.deleteAll(toDelete);
@@ -463,4 +497,26 @@ public class ContentJava extends JavaServer implements Content {
         return imageId;
     }
 
+    private void startSubscriber(KafkaSubscriber subscriber) {
+        subscriber.start(new RecordProcessor() {
+            @Override
+            public void onReceive(ConsumerRecord<String, String> r) {
+                Hibernate.TX tx = hibernate.beginTransaction();
+                List<Post> posts = hibernate.jpql(tx, "SELECT p FROM Post p WHERE p.mediaUrl LIKE '%" + r.value() + "'", Post.class);
+                for (Post post : posts) {
+                    post.setMediaUrl(null);
+                }
+                hibernate.updateAll(tx, posts);
+                hibernate.commitTransaction(tx);
+            }
+        });
+    }
+
+    private void changeReferenceOfImage(String imageURI, boolean addReference){
+        String[] parts = imageURI.split("/");
+        String imageId = parts[parts.length - 1];
+        String userId = parts[parts.length - 2];
+        String message = userId + "/" + imageId + " " + (addReference ? Image.ADD_IMAGE : Image.REMOVE_IMAGE);
+        publisher.publish(Image.REFERENCE_COUNTER_TOPIC, message);
+    }
 }

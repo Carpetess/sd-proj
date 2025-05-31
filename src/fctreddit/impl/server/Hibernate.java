@@ -21,8 +21,6 @@ public class Hibernate {
     private static Hibernate instance;
 
 
-
-
     private Hibernate() {
         try {
             sessionFactory = new Configuration()
@@ -37,6 +35,7 @@ public class Hibernate {
     /**
      * Returns the Hibernate instance, initializing if necessary.
      * Requires a configuration file (hibernate.cfg.xml)
+     *
      * @return
      */
     synchronized public static Hibernate getInstance() {
@@ -67,38 +66,39 @@ public class Hibernate {
     }
 
     public void abortTransaction(TX tx) {
-        if(tx.tx != null && tx.tx.isActive())
+        if (tx.tx != null && tx.tx.isActive())
             tx.tx.rollback();
-        if(tx.session != null && tx.session.isOpen())
+        if (tx.session != null && tx.session.isOpen())
             tx.session.close();
     }
 
 
     /**
      * Persists one or more objects to storage
+     *
      * @param objects - the objects to persist
      */
     public void persist(Object... objects) {
         Transaction tx = null;
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            for( var o : objects )
+            for (var o : objects)
                 session.persist(o);
             tx.commit();
         } catch (Exception e) {
-            if (tx!=null) tx.rollback();
+            if (tx != null) tx.rollback();
             throw e;
         }
     }
 
     public void persist(TX tx, Object... objects) {
-        for(Object o: objects) {
+        for (Object o : objects) {
             tx.session.persist(o);
         }
     }
 
-    public void persistVote(TX tx, Vote vote, Post post){
-        try{
+    public void persistVote(TX tx, Vote vote, Post post) {
+        try {
             tx.session.persist(vote);
             tx.session.merge(post);
             tx.tx.commit();
@@ -108,7 +108,7 @@ public class Hibernate {
 
     }
 
-    public void deleteVote(TX tx, Vote vote, Post post){
+    public void deleteVote(TX tx, Vote vote, Post post) {
         try {
             tx.session.remove(vote);
             tx.session.merge(post);
@@ -121,18 +121,19 @@ public class Hibernate {
 
     /**
      * Gets one object from storage
+     *
      * @param identifier - the objects identifier
-     * @param clazz - the class of the object that to be returned
+     * @param clazz      - the class of the object that to be returned
      */
     public <T> T get(Class<T> clazz, Object identifier) {
         Transaction tx = null;
         T element = null;
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
             element = session.get(clazz, identifier);
             tx.commit();
         } catch (Exception e) {
-            if (tx!=null) tx.rollback();
+            if (tx != null) tx.rollback();
             throw e;
         }
         return element;
@@ -144,80 +145,88 @@ public class Hibernate {
 
     /**
      * Updates one or more objects previously persisted.
+     *
      * @param objects - the objects to update
      */
     public void update(Object... objects) {
         Transaction tx = null;
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            for( var o : objects )
+            for (var o : objects)
                 session.merge(o);
             tx.commit();
         } catch (Exception e) {
-            if (tx!=null) tx.rollback();
+            if (tx != null) tx.rollback();
             throw e;
         }
     }
 
     /**
      * Removes one or more objects from storage
+     *
      * @param objects - the objects to remove from storage
      */
     public void delete(Object... objects) {
         Transaction tx = null;
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            for( var o : objects )
+            for (var o : objects)
                 session.remove(o);
             tx.commit();
         } catch (Exception e) {
-            if (tx!=null) tx.rollback();
+            if (tx != null) tx.rollback();
             throw e;
         }
     }
 
     public void deleteAll(List<?> objects) {
         Transaction tx = null;
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            for( var o : objects )
+            for (var o : objects)
                 session.remove(o);
             tx.commit();
         } catch (Exception e) {
-            if (tx!=null) tx.rollback();
+            if (tx != null) tx.rollback();
             throw e;
         }
     }
 
     public void updateAll(List<?> objects) {
         Transaction tx = null;
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             tx = session.beginTransaction();
-            for( var o : objects )
+            for (var o : objects)
                 session.merge(o);
             tx.commit();
         } catch (Exception e) {
-            if (tx!=null) tx.rollback();
+            if (tx != null) tx.rollback();
             throw e;
         }
     }
 
+    public void updateAll(TX tx, List<?> objects) {
+        for (var o : objects)
+            tx.session.merge(o);
+    }
 
     /**
      * Performs a jpql Hibernate query (SQL dialect)
-     * @param <T> The type of objects returned by the query
+     *
+     * @param <T>           The type of objects returned by the query
      * @param jpqlStatement - the jpql query statement
-     * @param clazz - the class of the objects that will be returned
+     * @param clazz         - the class of the objects that will be returned
      * @return - list of objects that match the query
      */
     public <T> List<T> jpql(String jpqlStatement, Class<T> clazz) {
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             var query = session.createQuery(jpqlStatement, clazz);
             return query.list();
         } catch (Exception e) {
             throw e;
         }
     }
+
     public <T> List<T> jpql(TX tx, String jpqlStatement, Class<T> clazz) {
         Query<T> query = tx.session.createQuery(jpqlStatement, clazz);
         return query.list();
@@ -226,13 +235,13 @@ public class Hibernate {
     /**
      * Performs a (native) SQL query
      *
-     * @param <T> The type of objects returned by the query
+     * @param <T>           The type of objects returned by the query
      * @param jpqlStatement - the sql query statement
-     * @param clazz - the class of the objects that will be returned
+     * @param clazz         - the class of the objects that will be returned
      * @return - list of objects that match the query
      */
     public <T> List<T> sql(String jpqlStatement, Class<T> clazz) {
-        try(var session = sessionFactory.openSession()) {
+        try (var session = sessionFactory.openSession()) {
             var query = session.createNativeQuery(jpqlStatement, clazz);
             return query.list();
         } catch (Exception e) {
@@ -241,18 +250,17 @@ public class Hibernate {
     }
 
 
-
-    public void executeSQL (String sqlStatement) {
+    public void executeSQL(String sqlStatement) {
         Transaction tx = null;
-            try (var session = sessionFactory.openSession()) {
-                tx = session.beginTransaction();
-                var query = session.createNativeQuery(sqlStatement);
-                query.executeUpdate();
-                tx.commit();
-            } catch (Exception e) {
-                throw e;
+        try (var session = sessionFactory.openSession()) {
+            tx = session.beginTransaction();
+            var query = session.createNativeQuery(sqlStatement);
+            query.executeUpdate();
+            tx.commit();
+        } catch (Exception e) {
+            throw e;
 
-            }
+        }
     }
 
     public <T> List<T> sql(TX tx, String sqlStatement, Class<T> clazz) {

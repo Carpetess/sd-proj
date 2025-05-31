@@ -8,6 +8,11 @@ import fctreddit.api.java.Users;
 import fctreddit.impl.client.UsersClient;
 import fctreddit.impl.server.Hibernate;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.repl.KafkaPublisher;
+import fctreddit.impl.server.repl.KafkaSubscriber;
+import fctreddit.impl.server.repl.KafkaUtils;
+import fctreddit.impl.server.repl.RecordProcessor;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -18,9 +23,21 @@ public class UsersJava extends JavaServer implements Users {
 
     private static Logger Log = Logger.getLogger(UsersJava.class.getName());
     private final Hibernate hibernate;
+    private static KafkaSubscriber subscriber;
+    private static KafkaPublisher publisher;
 
     public UsersJava() {
-
+        synchronized (this){
+            if (subscriber == null) {
+                KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
+                subscriber = KafkaSubscriber.createSubscriber("localhost:9092, kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+                startSubscriber(subscriber);
+            }
+            if (publisher == null) {
+                KafkaUtils.createTopic(Image.REFERENCE_COUNTER_TOPIC);
+                publisher = KafkaPublisher.createPublisher("localhost:9092, kafka:9092");
+            }
+        }
         hibernate = Hibernate.getInstance();
     }
 
@@ -29,12 +46,14 @@ public class UsersJava extends JavaServer implements Users {
         Log.info("Creating user " + user.getUserId() + "\n");
         Hibernate hibernate = Hibernate.getInstance();
         try {
-            if (user == null || !user.canBuild()) {
+            if (!user.canBuild()) {
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
             }
             if (hibernate.get(User.class, user.getUserId()) != null) {
                 return Result.error(Result.ErrorCode.CONFLICT);
             }
+            if (user.getAvatarUrl() != null)
+                changeReferenceOfImage(user.getAvatarUrl(), true);
             hibernate.persist(user);
         } catch (Exception e) {
             Log.severe(e + "Exception persisting user " + user.getUserId() + "\n");
@@ -88,6 +107,11 @@ public class UsersJava extends JavaServer implements Users {
             if (!oldUser.canUpdateUser(user)) {
                 Log.severe("User " + userId + " could not be updated \n");
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
+            }
+            if (user.getAvatarUrl() != null && !user.getAvatarUrl().equals(oldUser.getAvatarUrl())){
+                if (oldUser.getAvatarUrl() != null)
+                    changeReferenceOfImage(oldUser.getAvatarUrl(), false);
+                changeReferenceOfImage(user.getAvatarUrl(), true);
             }
             oldUser.updateUser(user);
             hibernate.update(oldUser);
@@ -147,5 +171,31 @@ public class UsersJava extends JavaServer implements Users {
     private String parseUrl(String url) {
         String[] parts = url.split("/");
         return parts[parts.length - 1];
+    }
+
+    private void changeReferenceOfImage(String imageURI, boolean addReference){
+        String[] parts = imageURI.split("/");
+        String imageId = parts[parts.length - 1];
+        String userId = parts[parts.length - 2];
+        String message = userId + "/" + imageId + " " + (addReference ? Image.ADD_IMAGE : Image.REMOVE_IMAGE);
+        publisher.publish(Image.REFERENCE_COUNTER_TOPIC, message);
+    }
+
+    private void startSubscriber(KafkaSubscriber subscriber) {
+        subscriber.start(new RecordProcessor() {
+            @Override
+            public void onReceive(ConsumerRecord<String, String> r) {
+                Log.info("Received delete image request for image " + r.value() + "\n");
+                String imageIdentifier = r.value();
+                Hibernate.TX tx = hibernate.beginTransaction();
+                List<User> users = hibernate.jpql(tx, "SELECT u FROM User u WHERE u.avatarUrl LIKE '%" + imageIdentifier + "'", User.class);
+                if (!users.isEmpty()) {
+                    for (User user : users) {
+                        user.setAvatarUrl(null);
+                    }
+                    hibernate.updateAll(users);
+                }
+            }
+        });
     }
 }

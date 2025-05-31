@@ -4,8 +4,6 @@ import fctreddit.api.data.User;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
-import fctreddit.impl.client.ImageClient;
-import fctreddit.impl.client.UsersClient;
 import fctreddit.impl.server.repl.KafkaPublisher;
 import fctreddit.impl.server.repl.KafkaSubscriber;
 import fctreddit.impl.server.repl.KafkaUtils;
@@ -19,10 +17,10 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class ImageJava extends JavaServer implements Image {
@@ -32,17 +30,21 @@ public class ImageJava extends JavaServer implements Image {
 
     private static KafkaSubscriber subscriber = null;
     private static KafkaPublisher publisher = null;
+    private static final Map<String, Long> imageReferenceCounter = new ConcurrentHashMap<>();
 
     public ImageJava() {
-        if (subscriber == null){
-            KafkaUtils.createTopic(REFERENCE_COUNTER_TOPIC);
-            subscriber = KafkaSubscriber.createSubscriber("localhost:9092, kafka:9092", List.of(REFERENCE_COUNTER_TOPIC));
-            startSubscriber(subscriber);
+        synchronized (this){
+            if (subscriber == null) {
+                KafkaUtils.createTopic(REFERENCE_COUNTER_TOPIC);
+                subscriber = KafkaSubscriber.createSubscriber("localhost:9092, kafka:9092", List.of(REFERENCE_COUNTER_TOPIC));
+                startSubscriber(subscriber);
+            }
+            if (publisher == null) {
+                KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
+                publisher = KafkaPublisher.createPublisher("localhost:9092, kafka:9092");
+            }
         }
-        if (publisher == null) {
-            KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
-            publisher = KafkaPublisher.createPublisher("localhost:9092, kafka:9092");
-        }
+
     }
 
     @Override
@@ -71,8 +73,14 @@ public class ImageJava extends JavaServer implements Image {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
 
-        Log.info("Created image " + imageUUID.toString() + " for user " + userId + "\n");
-        URI image = URI.create("/image/" + userId + "/" + imageUUID.toString());
+        Log.info("Created image " + imageUUID + " for user " + userId + "\n");
+        URI image = URI.create("/image/" + userId + "/" + imageUUID);
+
+        synchronized (imageReferenceCounter) {
+            imageReferenceCounter.put(userId + "/" + imageUUID, 0L);
+            notifyAll();
+        }
+        startImageCounter(userId, imageUUID.toString());
         return Result.ok(image.toString());
     }
 
@@ -100,13 +108,14 @@ public class ImageJava extends JavaServer implements Image {
 
     @Override
     public Result<Void> deleteImage(String userId, String imageId, String password) {
-         Log.info("Deleting image " + imageId + " for user " + userId + "\n");
+        Log.info("Deleting image " + imageId + " for user " + userId + "\n");
         if (password == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         Users userClient = getUsersClient();
         Result<User> user = userClient.getUser(userId, password);
         if (!user.isOK())
             return Result.error(user.error());
+        publisher.publish(DELETED_IMAGE_TOPIC, userId + "/" + imageId);
 
         return deleteImageHelper(userId, imageId);
     }
@@ -114,12 +123,11 @@ public class ImageJava extends JavaServer implements Image {
     private Result<Void> deleteImageHelper(String userId, String imageId) {
         Path imagePath = Paths.get(PATH, userId, imageId);
         try {
-            publisher.publish(DELETED_IMAGE_TOPIC, imageId);
             Files.delete(imagePath);
         } catch (NoSuchFileException e) {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         } catch (Exception e) {
-            Log.severe(e.toString()+ "\n");
+            Log.severe(e.toString() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
 
@@ -128,7 +136,7 @@ public class ImageJava extends JavaServer implements Image {
 
     private void startSubscriber(KafkaSubscriber subscriber) {
         subscriber.start(new RecordProcessor() {
-            final Map<String, Long> imageReferenceCounter = new HashMap<>();
+
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
                 Log.info("Received delete image request for image " + r.value() + "\n");
@@ -136,24 +144,39 @@ public class ImageJava extends JavaServer implements Image {
                 String id = parts[0];
                 long referenceChange = ADD_IMAGE.equals(parts[1]) ? 1 : -1;
                 String[] idParts = id.split("/");
-
-                File imageFile = Paths.get(PATH, idParts[0], idParts[1]).toFile();
-
-                if (!imageFile.exists()) {
-                    Log.info("Received delete image request for image " + r.value()
-                            + " but image does not exist. Ignoring request. \n");
-                    return;
-                }
-                if (!imageReferenceCounter.containsKey(id)) {
-                    imageReferenceCounter.put(id, referenceChange);
-                } else {
-                    imageReferenceCounter.put(id, imageReferenceCounter.get(id) + referenceChange);
-                }
-                if (imageReferenceCounter.get(id) <= 0) {
-                    imageReferenceCounter.remove(id);
-                    deleteImageHelper(idParts[0], idParts[1]);
+                synchronized (imageReferenceCounter) {
+                    Long referenceCount = imageReferenceCounter.get(id);
+                    if (referenceCount != null) {
+                        imageReferenceCounter.put(id, referenceCount + referenceChange);
+                        if (referenceCount + referenceChange == 0){
+                            imageReferenceCounter.remove(id);
+                            deleteImageHelper(idParts[0], idParts[1]);
+                        }
+                        imageReferenceCounter.put(id, imageReferenceCounter.get(id) + referenceChange);
+                    }
                 }
             }
         });
     }
+
+    private void startImageCounter(String userId, String imageId) {
+        new Thread(() -> {
+            try {
+                wait(30000);
+            } catch (InterruptedException e) {
+                // Do nothing
+            }
+            synchronized (imageReferenceCounter) {
+                Long referenceCount = imageReferenceCounter.get(userId + "/" + imageId);
+                if (referenceCount != null && referenceCount == 0) {
+                    imageReferenceCounter.remove(userId + "/" + imageId);
+                    deleteImageHelper(userId, imageId);
+                }
+            }
+
+        }
+        ).start();
+    }
+
+
 }
