@@ -6,6 +6,11 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.client.ImageClient;
 import fctreddit.impl.client.UsersClient;
+import fctreddit.impl.server.repl.KafkaPublisher;
+import fctreddit.impl.server.repl.KafkaSubscriber;
+import fctreddit.impl.server.repl.KafkaUtils;
+import fctreddit.impl.server.repl.RecordProcessor;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,6 +19,9 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -22,7 +30,20 @@ public class ImageJava extends JavaServer implements Image {
 
     private static final String PATH = "home/sd/images/";
 
-    public ImageJava() {}
+    private static KafkaSubscriber subscriber = null;
+    private static KafkaPublisher publisher = null;
+
+    public ImageJava() {
+        if (subscriber == null){
+            KafkaUtils.createTopic(REFERENCE_COUNTER_TOPIC);
+            subscriber = KafkaSubscriber.createSubscriber("localhost:9092, kafka:9092", List.of(REFERENCE_COUNTER_TOPIC));
+            startSubscriber(subscriber);
+        }
+        if (publisher == null) {
+            KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
+            publisher = KafkaPublisher.createPublisher("localhost:9092, kafka:9092");
+        }
+    }
 
     @Override
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
@@ -87,8 +108,13 @@ public class ImageJava extends JavaServer implements Image {
         if (!user.isOK())
             return Result.error(user.error());
 
+        return deleteImageHelper(userId, imageId);
+    }
+
+    private Result<Void> deleteImageHelper(String userId, String imageId) {
         Path imagePath = Paths.get(PATH, userId, imageId);
         try {
+            publisher.publish(DELETED_IMAGE_TOPIC, imageId);
             Files.delete(imagePath);
         } catch (NoSuchFileException e) {
             return Result.error(Result.ErrorCode.NOT_FOUND);
@@ -100,4 +126,34 @@ public class ImageJava extends JavaServer implements Image {
         return Result.ok();
     }
 
+    private void startSubscriber(KafkaSubscriber subscriber) {
+        subscriber.start(new RecordProcessor() {
+            final Map<String, Long> imageReferenceCounter = new HashMap<>();
+            @Override
+            public void onReceive(ConsumerRecord<String, String> r) {
+                Log.info("Received delete image request for image " + r.value() + "\n");
+                String[] parts = r.value().split(" ");
+                String id = parts[0];
+                long referenceChange = ADD_IMAGE.equals(parts[1]) ? 1 : -1;
+                String[] idParts = id.split("/");
+
+                File imageFile = Paths.get(PATH, idParts[0], idParts[1]).toFile();
+
+                if (!imageFile.exists()) {
+                    Log.info("Received delete image request for image " + r.value()
+                            + " but image does not exist. Ignoring request. \n");
+                    return;
+                }
+                if (!imageReferenceCounter.containsKey(id)) {
+                    imageReferenceCounter.put(id, referenceChange);
+                } else {
+                    imageReferenceCounter.put(id, imageReferenceCounter.get(id) + referenceChange);
+                }
+                if (imageReferenceCounter.get(id) <= 0) {
+                    imageReferenceCounter.remove(id);
+                    deleteImageHelper(idParts[0], idParts[1]);
+                }
+            }
+        });
+    }
 }
