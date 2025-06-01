@@ -76,6 +76,7 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
                 BasicResponse body = json.fromJson(r.getBody(), BasicResponse.class);
@@ -105,6 +106,7 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             return Result.ok();
@@ -151,7 +153,7 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
-                Log.severe("No image was found for user " + userId + " and image id " + imageId + "\n");
+                Log.severe("Operation to download image bytes Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody() + "\n");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             Log.info("Contents of Body: " + r.getBody());
@@ -189,7 +191,7 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
-                Log.severe("HTTP NOT SUSCEFULL");
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
             return Result.ok();
@@ -329,6 +331,7 @@ public class ImageProxyJava extends JavaServer implements Image {
         try {
             Response r = service.execute(getAlbumImages);
             if (r.getCode() != HTTP_SUCCESS) {
+                Log.severe("Operation Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody());
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             } else {
                 List<String> listOfIds = json.fromJson(r.getBody(), BasicResponseArray.class).getData().stream()

@@ -27,12 +27,14 @@ public class ContentJava extends JavaServer implements Content {
     private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
+    private static final Object lock = new Object();
     private final Hibernate hibernate;
     private static KafkaSubscriber subscriber;
     private static KafkaPublisher publisher;
 
     public ContentJava() {
-        synchronized (this){
+        Log.info("Starting ContentJava");
+        synchronized (lock){
             if (subscriber == null) {
                 KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
                 subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
@@ -43,6 +45,7 @@ public class ContentJava extends JavaServer implements Content {
                 publisher = KafkaPublisher.createPublisher("kafka:9092");
             }
         }
+        Log.info("Finished ContentJava");
         hibernate = Hibernate.getInstance();
     }
 
@@ -51,7 +54,7 @@ public class ContentJava extends JavaServer implements Content {
         Log.info("Creating post " + post.getPostId() + "\n");
         post.setPostId(UUID.randomUUID().toString());
         post.setCreationTimestamp(System.currentTimeMillis());
-        if (post.getMediaUrl() != null)
+        if (post.getMediaUrl() != null && !post.getMediaUrl().isBlank())
             changeReferenceOfImage(post.getMediaUrl(), true);
         // Enviar para as replicas
         return createPostGeneric(post, userPassword);
@@ -175,8 +178,9 @@ public class ContentJava extends JavaServer implements Content {
             if (!comments.isEmpty() || !votes.isEmpty())
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
 
-            if (post.getMediaUrl() != null && !oldPost.getMediaUrl().equals(post.getMediaUrl())) {
-                if (oldPost.getMediaUrl() != null)
+            if (post.getMediaUrl() != null && !post.getMediaUrl().isBlank() && (oldPost.getMediaUrl() == null || !oldPost.getMediaUrl().equals(post.getMediaUrl()))) {
+                Log.info("Changing reference of image " + oldPost.getMediaUrl() + " to " + post.getMediaUrl() + "\n");
+                if (oldPost.getMediaUrl() != null && !oldPost.getMediaUrl().isBlank())
                     changeReferenceOfImage(oldPost.getMediaUrl(), false);
                 changeReferenceOfImage(post.getMediaUrl(), true);
             }
@@ -209,17 +213,16 @@ public class ContentJava extends JavaServer implements Content {
             if (!userRes.isOK())
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             List<Post> toDelete = deletePostHelper(postId);
-            if (toDelete.isEmpty()){
+            if (!toDelete.isEmpty()) {
                 for (Post p : toDelete) {
-                    Log.info("Deleting post " + p.getPostId());
-                    changeReferenceOfImage(p.getMediaUrl(), false);
+                    if (p.getMediaUrl() != null && !p.getMediaUrl().isBlank())
+                        changeReferenceOfImage(p.getMediaUrl(), false);
                 }
-                return Result.ok();
             }
             toDelete.add(post);
             Log.info("Deleting " + toDelete.size() + " posts");
             hibernate.deleteAll(toDelete);
-            if (post.getMediaUrl() != null)
+            if (post.getMediaUrl() != null && !post.getMediaUrl().isBlank())
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
 
         } catch (Exception e) {
@@ -333,7 +336,7 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
-            p.setDownVote(p.getDownVote() + 1);
+        p.setDownVote(p.getDownVote() + 1);
 
         try {
             hibernate.persistVote(tx, new Vote(userId, postId, false), p);
@@ -417,8 +420,8 @@ public class ContentJava extends JavaServer implements Content {
 
 
     @Override
-    public Result<Void> updatePostOwner(String userId, String password,String secret) {
-        if(!secret.equals(SecretKeeper.getInstance().getSecret())){
+    public Result<Void> updatePostOwner(String userId, String password, String secret) {
+        if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
         Log.info("Updating owner for user " + userId + "'s posts");
@@ -439,11 +442,11 @@ public class ContentJava extends JavaServer implements Content {
     }
 
     @Override
-    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
+    public Result<Void> removeAllUserVotes(String userId, String password, String secret) {
         Hibernate.TX tx = hibernate.beginTransaction();
         Log.info("Removing all votes for user " + userId + "with secret: " + secret + " and this is my secret: "
-        + SecretKeeper.getInstance().getSecret() + "\n");
-        if(!secret.equals(SecretKeeper.getInstance().getSecret())){
+                + SecretKeeper.getInstance().getSecret() + "\n");
+        if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
         Log.info("Removing all votes for user " + userId);
@@ -512,7 +515,7 @@ public class ContentJava extends JavaServer implements Content {
         });
     }
 
-    private void changeReferenceOfImage(String imageURI, boolean addReference){
+    private void changeReferenceOfImage(String imageURI, boolean addReference) {
         String[] parts = imageURI.split("/");
         String imageId = parts[parts.length - 1];
         String userId = parts[parts.length - 2];

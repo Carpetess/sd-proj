@@ -2,6 +2,7 @@ package fctreddit.impl.server.rest;
 
 import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.java.ImageJava;
 import fctreddit.impl.server.java.ImageProxy.ImageProxyJava;
 import fctreddit.impl.server.java.JavaServer;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
@@ -33,6 +34,7 @@ public class ImageServer {
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ImageResource.class);
+            new ImageJava();
             SecretKeeper.getInstance().setSecret(args[args.length-1]);
             Log.info("Starting Content Server\n");
             Log.info("Using Secret: " + args[args.length-1] + "\n");

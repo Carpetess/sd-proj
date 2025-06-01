@@ -2,6 +2,7 @@ package fctreddit.impl.server.rest;
 
 import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.java.ContentJava;
 import fctreddit.impl.server.java.JavaServer;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -31,6 +32,7 @@ public class ContentServer {
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ContentResource.class);
+            new ContentJava();
             Log.info("Starting Content Server\n");
             Log.info("Using Secret: " + args[args.length-1] + "\n");
             SecretKeeper.getInstance().setSecret(args[args.length-1]);

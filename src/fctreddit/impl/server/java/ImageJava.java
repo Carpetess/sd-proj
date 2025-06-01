@@ -28,20 +28,25 @@ public class ImageJava extends JavaServer implements Image {
 
     private static final String PATH = "home/sd/images/";
 
+    private static final Object lock = new Object();
     private static KafkaSubscriber subscriber = null;
     private static KafkaPublisher publisher = null;
     private static final Map<String, Long> imageReferenceCounter = new ConcurrentHashMap<>();
 
     public ImageJava() {
-        synchronized (this){
-            if (subscriber == null) {
-                KafkaUtils.createTopic(REFERENCE_COUNTER_TOPIC);
-                subscriber = KafkaSubscriber.createSubscriber("localhost:9092, kafka:9092", List.of(REFERENCE_COUNTER_TOPIC));
-                startSubscriber(subscriber);
-            }
-            if (publisher == null) {
-                KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
-                publisher = KafkaPublisher.createPublisher("localhost:9092, kafka:9092");
+        if (subscriber == null || publisher == null){
+            synchronized (lock){
+                if (subscriber == null) {
+                    Log.info("Starting subscriber");
+                    KafkaUtils.createTopic(REFERENCE_COUNTER_TOPIC);
+                    subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(REFERENCE_COUNTER_TOPIC));
+                    startSubscriber(subscriber);
+                }
+                if (publisher == null) {
+                    Log.info("Starting publisher");
+                    KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
+                    publisher = KafkaPublisher.createPublisher("kafka:9092");
+                }
             }
         }
 
@@ -76,10 +81,7 @@ public class ImageJava extends JavaServer implements Image {
         Log.info("Created image " + imageUUID + " for user " + userId + "\n");
         URI image = URI.create("/image/" + userId + "/" + imageUUID);
 
-        synchronized (imageReferenceCounter) {
-            imageReferenceCounter.put(userId + "/" + imageUUID, 0L);
-            notifyAll();
-        }
+        imageReferenceCounter.put(userId + "/" + imageUUID, 0L);
         startImageCounter(userId, imageUUID.toString());
         return Result.ok(image.toString());
     }
@@ -116,6 +118,7 @@ public class ImageJava extends JavaServer implements Image {
         if (!user.isOK())
             return Result.error(user.error());
         publisher.publish(DELETED_IMAGE_TOPIC, userId + "/" + imageId);
+        imageReferenceCounter.remove(userId + "/" + imageId);
 
         return deleteImageHelper(userId, imageId);
     }
@@ -136,7 +139,6 @@ public class ImageJava extends JavaServer implements Image {
 
     private void startSubscriber(KafkaSubscriber subscriber) {
         subscriber.start(new RecordProcessor() {
-
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
                 Log.info("Received delete image request for image " + r.value() + "\n");
@@ -147,12 +149,12 @@ public class ImageJava extends JavaServer implements Image {
                 synchronized (imageReferenceCounter) {
                     Long referenceCount = imageReferenceCounter.get(id);
                     if (referenceCount != null) {
-                        imageReferenceCounter.put(id, referenceCount + referenceChange);
                         if (referenceCount + referenceChange == 0){
                             imageReferenceCounter.remove(id);
                             deleteImageHelper(idParts[0], idParts[1]);
+                        } else {
+                            imageReferenceCounter.put(id, referenceCount + referenceChange);
                         }
-                        imageReferenceCounter.put(id, imageReferenceCounter.get(id) + referenceChange);
                     }
                 }
             }
@@ -162,21 +164,16 @@ public class ImageJava extends JavaServer implements Image {
     private void startImageCounter(String userId, String imageId) {
         new Thread(() -> {
             try {
-                wait(30000);
+                Thread.sleep(30000);
             } catch (InterruptedException e) {
                 // Do nothing
             }
-            synchronized (imageReferenceCounter) {
                 Long referenceCount = imageReferenceCounter.get(userId + "/" + imageId);
                 if (referenceCount != null && referenceCount == 0) {
                     imageReferenceCounter.remove(userId + "/" + imageId);
                     deleteImageHelper(userId, imageId);
                 }
-            }
-
         }
         ).start();
     }
-
-
 }

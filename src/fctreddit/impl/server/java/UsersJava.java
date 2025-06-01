@@ -23,21 +23,24 @@ public class UsersJava extends JavaServer implements Users {
 
     private static Logger Log = Logger.getLogger(UsersJava.class.getName());
     private final Hibernate hibernate;
+    private final static Object lock = new Object();
     private static KafkaSubscriber subscriber;
     private static KafkaPublisher publisher;
 
     public UsersJava() {
-        synchronized (this){
-            if (subscriber == null) {
-                KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
-                subscriber = KafkaSubscriber.createSubscriber("localhost:9092, kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
-                startSubscriber(subscriber);
+        Log.info("Starting UsersJava");
+            synchronized (lock) {
+                if (subscriber == null) {
+                    KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
+                    subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+                    startSubscriber(subscriber);
+                }
+                if (publisher == null) {
+                    KafkaUtils.createTopic(Image.REFERENCE_COUNTER_TOPIC);
+                    publisher = KafkaPublisher.createPublisher("kafka:9092");
+                }
             }
-            if (publisher == null) {
-                KafkaUtils.createTopic(Image.REFERENCE_COUNTER_TOPIC);
-                publisher = KafkaPublisher.createPublisher("localhost:9092, kafka:9092");
-            }
-        }
+        Log.info("Finished UsersJava");
         hibernate = Hibernate.getInstance();
     }
 
@@ -52,7 +55,7 @@ public class UsersJava extends JavaServer implements Users {
             if (hibernate.get(User.class, user.getUserId()) != null) {
                 return Result.error(Result.ErrorCode.CONFLICT);
             }
-            if (user.getAvatarUrl() != null)
+            if (user.getAvatarUrl() != null && !user.getAvatarUrl().isEmpty())
                 changeReferenceOfImage(user.getAvatarUrl(), true);
             hibernate.persist(user);
         } catch (Exception e) {
@@ -174,6 +177,7 @@ public class UsersJava extends JavaServer implements Users {
     }
 
     private void changeReferenceOfImage(String imageURI, boolean addReference){
+        Log.info("Changing reference of image " + imageURI + " to " + (addReference ? "add" : "remove") + "\n");
         String[] parts = imageURI.split("/");
         String imageId = parts[parts.length - 1];
         String userId = parts[parts.length - 2];
