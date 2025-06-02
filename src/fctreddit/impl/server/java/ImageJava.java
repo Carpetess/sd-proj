@@ -32,6 +32,7 @@ public class ImageJava extends JavaServer implements Image {
     private static KafkaSubscriber subscriber = null;
     private static KafkaPublisher publisher = null;
     private static final Map<String, Long> imageReferenceCounter = new ConcurrentHashMap<>();
+    private static final Map<String, Void> gracePeriodImages = new ConcurrentHashMap<>();
 
     public ImageJava() {
         if (subscriber == null || publisher == null){
@@ -146,6 +147,7 @@ public class ImageJava extends JavaServer implements Image {
                 String id = parts[0];
                 long referenceChange = ADD_IMAGE.equals(parts[1]) ? 1 : -1;
                 String[] idParts = id.split("/");
+                if (!gracePeriodImages.containsKey(id)){
                 synchronized (imageReferenceCounter) {
                     Long referenceCount = imageReferenceCounter.get(id);
                     if (referenceCount != null) {
@@ -157,17 +159,20 @@ public class ImageJava extends JavaServer implements Image {
                         }
                     }
                 }
+                }
             }
         });
     }
 
     private void startImageCounter(String userId, String imageId) {
         new Thread(() -> {
+            gracePeriodImages.put(userId + "/" + imageId, null);
             try {
                 Thread.sleep(30000);
             } catch (InterruptedException e) {
                 // Do nothing
             }
+            gracePeriodImages.remove(userId + "/" + imageId);
                 Long referenceCount = imageReferenceCounter.get(userId + "/" + imageId);
                 if (referenceCount != null && referenceCount == 0) {
                     imageReferenceCounter.remove(userId + "/" + imageId);
