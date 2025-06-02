@@ -1,4 +1,4 @@
-package fctreddit.impl.server.rest.filter;
+package fctreddit.impl.server.repl.filter;
 
 import fctreddit.impl.server.repl.SyncPoint;
 import jakarta.ws.rs.container.ContainerRequestContext;

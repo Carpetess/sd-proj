@@ -28,15 +28,18 @@ public class ImageJava extends JavaServer implements Image {
 
     private static final String PATH = "home/sd/images/";
 
+    private static final int SLEEP_DURATION = 30000;
+
     private static final Object lock = new Object();
     private static KafkaSubscriber subscriber = null;
     private static KafkaPublisher publisher = null;
     private static final Map<String, Long> imageReferenceCounter = new ConcurrentHashMap<>();
-    private static final Map<String, Void> gracePeriodImages = new ConcurrentHashMap<>();
+    private static final Map<String, Long> gracePeriodImages = new ConcurrentHashMap<>();
 
     public ImageJava() {
         if (subscriber == null || publisher == null){
             synchronized (lock){
+                clearGracePeriod();
                 if (subscriber == null) {
                     Log.info("Starting subscriber");
                     KafkaUtils.createTopic(REFERENCE_COUNTER_TOPIC);
@@ -82,7 +85,6 @@ public class ImageJava extends JavaServer implements Image {
         Log.info("Created image " + imageUUID + " for user " + userId + "\n");
         URI image = URI.create("/image/" + userId + "/" + imageUUID);
 
-        imageReferenceCounter.put(userId + "/" + imageUUID, 0L);
         startImageCounter(userId, imageUUID.toString());
         return Result.ok(image.toString());
     }
@@ -147,11 +149,10 @@ public class ImageJava extends JavaServer implements Image {
                 String id = parts[0];
                 long referenceChange = ADD_IMAGE.equals(parts[1]) ? 1 : -1;
                 String[] idParts = id.split("/");
-                if (!gracePeriodImages.containsKey(id)){
                 synchronized (imageReferenceCounter) {
                     Long referenceCount = imageReferenceCounter.get(id);
                     if (referenceCount != null) {
-                        if (referenceCount + referenceChange == 0){
+                        if (referenceCount + referenceChange == 0 && (!gracePeriodImages.containsKey(id) || gracePeriodImages.get(id) <= System.currentTimeMillis() - SLEEP_DURATION)) {
                             imageReferenceCounter.remove(id);
                             deleteImageHelper(idParts[0], idParts[1]);
                         } else {
@@ -159,26 +160,38 @@ public class ImageJava extends JavaServer implements Image {
                         }
                     }
                 }
-                }
             }
         });
     }
 
-    private void startImageCounter(String userId, String imageId) {
+    private void clearGracePeriod() {
         new Thread(() -> {
-            gracePeriodImages.put(userId + "/" + imageId, null);
-            try {
-                Thread.sleep(30000);
-            } catch (InterruptedException e) {
-                // Do nothing
-            }
-            gracePeriodImages.remove(userId + "/" + imageId);
-                Long referenceCount = imageReferenceCounter.get(userId + "/" + imageId);
-                if (referenceCount != null && referenceCount == 0) {
-                    imageReferenceCounter.remove(userId + "/" + imageId);
-                    deleteImageHelper(userId, imageId);
+            while (true) {
+                try {
+                    Thread.sleep(SLEEP_DURATION);
+                } catch (InterruptedException e) {
+                    // Do nothing
                 }
-        }
-        ).start();
+                long currentTime = System.currentTimeMillis();
+                synchronized (gracePeriodImages) {
+                    for (String key : gracePeriodImages.keySet()) {
+                        if (currentTime - gracePeriodImages.get(key) > SLEEP_DURATION) {
+                            Long referenceCount = imageReferenceCounter.get(key);
+                            if (referenceCount != null && referenceCount == 0) {
+                                imageReferenceCounter.remove(key);
+                                String[] parts = key.split("/");
+                                deleteImageHelper(parts[0], parts[1]);
+                            }
+                            gracePeriodImages.remove(key);
+                        }
+                    }
+                }
+            }
+        }).start();
+    }
+    private void startImageCounter(String userId, String imageId) {
+        long time = System.currentTimeMillis();
+        imageReferenceCounter.put(userId + "/" + imageId, 0L);
+        gracePeriodImages.put(userId + "/" + imageId, time);
     }
 }
