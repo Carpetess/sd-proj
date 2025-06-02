@@ -11,11 +11,13 @@ import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.StreamObserver;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 import static fctreddit.impl.server.ErrorParser.errorCodeToThrowable;
 
 public class GrpcContentServerStub implements ContentGrpc.AsyncService, BindableService {
     private final ContentJava impl = new ContentJava();
+    private static final Logger Log = Logger.getLogger( GrpcContentServerStub.class.getName());
 
     @Override
     public ServerServiceDefinition bindService() {
@@ -43,11 +45,18 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
 
     @Override
     public void deletePost(ContentProtoBuf.DeletePostArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.deletePost(request.getPostId(), request.hasPassword() ? request.getPassword() : null);
-        if (!res.isOK())
-            responseObserver.onError(errorCodeToThrowable(res.error()));
-        responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
-        responseObserver.onCompleted();
+        try {
+            Log.info("Deleting post with id: " + request.getPostId());
+            Result<Void> res = impl.deletePost(request.getPostId(), request.hasPassword() ? request.getPassword() : null);
+            if (!res.isOK())
+                responseObserver.onError(errorCodeToThrowable(res.error()));
+            responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
+            responseObserver.onCompleted();
+            Log.info("fiz um delete e não rebentei");
+        } catch (Exception e) {
+            Log.severe("ERRO!!!!! ->>>>>> " + e.getMessage());
+        }
+
     }
 
     @Override

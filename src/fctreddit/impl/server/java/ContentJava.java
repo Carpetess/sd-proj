@@ -215,14 +215,17 @@ public class ContentJava extends JavaServer implements Content {
             List<Post> toDelete = deletePostHelper(postId);
             if (!toDelete.isEmpty()) {
                 for (Post p : toDelete) {
-                    if (p.getMediaUrl() != null && !p.getMediaUrl().isBlank())
+                    Log.info("This is the media url: " + p.getMediaUrl() + "\n");
+                    if (p.getMediaUrl() != null && !p.getMediaUrl().isBlank()){
+                        Log.info("Changing reference of image " + p.getMediaUrl() + " to null\n");
                         changeReferenceOfImage(p.getMediaUrl(), false);
+                    }
                 }
             }
             toDelete.add(post);
             Log.info("Deleting " + toDelete.size() + " posts");
             hibernate.deleteAll(toDelete);
-            if (post.getMediaUrl() != null && !post.getMediaUrl().isBlank())
+            if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
 
         } catch (Exception e) {
