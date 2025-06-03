@@ -3,7 +3,7 @@ package fctreddit.impl.server.rest;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.rest.RestImage;
-import fctreddit.impl.server.java.ImageProxy.ImageProxy;
+import fctreddit.impl.server.java.ImageProxy.ImageProxyJava;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.io.IOException;
@@ -17,7 +17,7 @@ public class ImageProxyResource implements RestImage {
     private Image impl;
 
     public ImageProxyResource() {
-        impl = new ImageProxy();
+        impl = new ImageProxyJava();
     }
 
     @Override
@@ -30,7 +30,7 @@ public class ImageProxyResource implements RestImage {
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
         }
-        URI finalURI = URI.create(ImageServer.serverURI.toString() + res.value());
+        URI finalURI = URI.create(ImageProxyServer.serverURI.toString() + res.value());
         return finalURI.toString();
     }
 

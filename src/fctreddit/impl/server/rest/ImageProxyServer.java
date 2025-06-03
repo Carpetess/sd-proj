@@ -30,7 +30,7 @@ public class ImageProxyServer {
     public static int PORT = 8080;
     public static final String SERVICE = "Image";
     private static final String SERVER_URI_FMT = "https://%s:%s/rest";
-    private static String serverURI;
+    public static String serverURI;
     private static String associatedAlbumId;
     private static String hostName;
 
@@ -79,7 +79,7 @@ public class ImageProxyServer {
         if(reboot){
             Log.info("Rebooting Imgur Album\n");
             impl.deleteAlbum(associatedAlbumId);
-
+            Log.info("Imgur Album rebooted with id: " + associatedAlbumId + "\n");
         }
 
 

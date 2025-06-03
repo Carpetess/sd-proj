@@ -147,12 +147,17 @@ public class ImageProxyJava extends JavaServer implements Image {
     }
 
     private Result<BasicResponse> getImageObject(String userId, String imageId) {
+        Log.info("Getting image object " + imageId + "\n");
         String requestURL = String.format(GET_ALBUM_IMAGE, associatedAlbumId, imageId);
         OAuthRequest request = new OAuthRequest(Verb.GET, requestURL);
         service.signRequest(accessToken, request);
         try {
             Response r = service.execute(request);
             if (r.getCode() != HTTP_SUCCESS) {
+                if (r.getCode() == 404) {
+                    Log.severe("Image not found" + imageId + "\n");
+                    return Result.error(Result.ErrorCode.NOT_FOUND);
+                }
                 Log.severe("Operation to download image bytes Failed\nStatus: " + r.getCode() + "\nBody: " + r.getBody() + "\n");
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR);
             }
