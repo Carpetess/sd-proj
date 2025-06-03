@@ -39,12 +39,12 @@ public class ImageRestClient extends ImageClient implements Image {
     }
 
     @Override
-    public Result<String> createImage(String userId, byte[] imageContents, String password) throws IOException {
+    public Result<String> createImage(String userId, byte[] imageContents, String password) {
         return null;
     }
 
     @Override
-    public Result<byte[]> getImage(String userId, String imageId) throws IOException {
+    public Result<byte[]> getImage(String userId, String imageId) {
         return null;
     }
 

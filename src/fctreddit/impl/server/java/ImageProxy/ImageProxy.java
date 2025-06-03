@@ -71,7 +71,7 @@ public class ImageProxy extends JavaServer implements Image {
         String imageName = String.format(userId, "/", imageId);
 
         request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-        request.setPayload(json.toJson(new ImageUploadArguments(imageContents, imageName)));
+        request.setPayload(json.toJson(new ImageUploadArguments(imageContents, imageName, userId)));
 
         service.signRequest(accessToken, request);
 
@@ -188,7 +188,7 @@ public class ImageProxy extends JavaServer implements Image {
 		OAuthRequest request = new OAuthRequest(Verb.POST, CREATE_ALBUM_URL);
 
 		request.addHeader(CONTENT_TYPE_HDR, JSON_CONTENT_TYPE);
-		request.setPayload(json.toJson(new CreateAlbumArguments(ALBUM_ID, ALBUM_ID)));
+		request.setPayload(json.toJson(new CreateAlbumArguments(ALBUM_ID)));
 
 		service.signRequest(accessToken, request);
 

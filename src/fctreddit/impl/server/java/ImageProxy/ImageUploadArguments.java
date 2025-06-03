@@ -7,8 +7,8 @@ public record ImageUploadArguments(String image,
 		String title, 
 		String description) {
 
-	public ImageUploadArguments(byte[] image, String title) {
-		this(Base64.getEncoder().encodeToString(image), "base64", title, title);
+	public ImageUploadArguments(byte[] image, String title, String description) {
+		this(Base64.getEncoder().encodeToString(image), "base64", title, description);
 	}
 	
 	public byte[] getImageData() {

@@ -13,7 +13,7 @@ public interface Image {
 	 * 			FORBIDDEN if user password is incorrect
 	 * 		   	BAD_REQUEST if imageContents has a size of zero or password is null
 	 */
-	Result<String> createImage(String userId, byte[] imageContents, String password) throws IOException;
+	Result<String> createImage(String userId, byte[] imageContents, String password);
 
 	/**
 	 * Gets the contents of an image associated with the imageId
@@ -22,7 +22,7 @@ public interface Image {
 	 * @return <OK, byte[]> the case of success returning the bytes of the image exists
 	 *  	   NOT_FOUND should be returned if the image does not exists
 	 */
-	Result<byte[]> getImage(String userId, String imageId) throws IOException;
+	Result<byte[]> getImage(String userId, String imageId);
 	
 	/**
 	 * Deletes an image identified by imageId
@@ -33,6 +33,6 @@ public interface Image {
 	 * 			FORBIDDEN if user password is incorrect
 	 * 		   	BAD_REQUEST password is null
 	 */
-	Result<Void> deleteImage(String userId, String imageId, String password) throws IOException;
+	Result<Void> deleteImage(String userId, String imageId, String password);
 
 }

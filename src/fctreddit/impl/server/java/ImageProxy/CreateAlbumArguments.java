@@ -8,8 +8,8 @@ public record CreateAlbumArguments(String title,
 		String[] ids, 
 		String[] deletedhashes) {
 	
-	public CreateAlbumArguments(String title, String description) {
-		this(title, description, "public", "grid", null, null, null);
+	public CreateAlbumArguments(String title) {
+		this(title, title, "public", "grid", null, null, null);
 	}
 	
 }
