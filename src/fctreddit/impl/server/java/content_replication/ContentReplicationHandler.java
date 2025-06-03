@@ -4,19 +4,29 @@ import fctreddit.api.data.Post;
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.impl.server.Hibernate;
+import fctreddit.impl.server.java.ContentJava;
+import fctreddit.impl.server.repl.KafkaPublisher;
+import fctreddit.impl.server.repl.KafkaSubscriber;
 import fctreddit.impl.server.repl.SyncPoint;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class ContentReplicationHandler implements Content {
 
-    private Hibernate hibernate;
-    private static final Logger Log = Logger.getLogger(ContentReplicationHandler.class.getName());
-    private static SyncPoint syncPoint;
+    private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
+
+    Logger Log = Logger.getLogger(ContentJava.class.getName());
+    private static final Object lock = new Object();
+    private final Hibernate hibernate = Hibernate.getInstance();
+    private static KafkaSubscriber subscriber;
+    private static KafkaPublisher publisher;
+    private final SyncPoint syncPoint = SyncPoint.getSyncPoint();
+
     public ContentReplicationHandler() {
-        syncPoint = SyncPoint.getSyncPoint();
-        Hibernate.getInstance();
+
     }
 
     @Override
@@ -52,12 +62,45 @@ public class ContentReplicationHandler implements Content {
 
     @Override
     public Result<Post> getPost(String postId) {
-        return null;
+        Log.info("Getting post " + postId + "\n");
+        if (postId == null)
+            return Result.error(Result.ErrorCode.BAD_REQUEST);
+        Post post;
+        try {
+            post = hibernate.get(Post.class, postId);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        return Result.ok(post);
     }
 
     @Override
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-        return null;
+                Log.info("Getting answers for post " + postId + "\n");
+        List<Post> posts;
+        if (maxTimeout != 0) {
+            lockMap.putIfAbsent(postId, new Object());
+
+            Object lock = lockMap.get(postId);
+            synchronized (lock) {
+                try {
+                    lock.wait(maxTimeout);
+                } catch (InterruptedException e) {
+                    Log.severe(e.toString());
+                    return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+                }
+            }
+        }
+        try {
+            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
+        } catch (Exception e) {
+            Log.severe(e + "\n");
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        return Result.ok(posts.stream().map(Post::getPostId).toList());
     }
 
     @Override
