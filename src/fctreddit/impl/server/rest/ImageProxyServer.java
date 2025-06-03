@@ -44,10 +44,10 @@ public class ImageProxyServer {
             config.register(ImageProxyResource.class);
             Log.info("Starting Content Server\n");
             Log.info("Using Secret: " + args[args.length-1] + "\n");
-            startImgurAlbum(reboot);
             SecretKeeper.getInstance().setSecret(args[args.length - 1]);
             Log.info("Secret registered: " + SecretKeeper.getInstance().getSecret() + "\n");
             hostName = InetAddress.getLocalHost().getHostName();
+            startImgurAlbum(reboot);
             serverURI = String.format(SERVER_URI_FMT, hostName, PORT);
             discovery = new Discovery(Discovery.DISCOVERY_ADDR, SERVICE, serverURI);
             discovery.start();
