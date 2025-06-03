@@ -168,6 +168,11 @@ public class Hibernate {
         }
     }
 
+    public void updateAll(TX tx, List<?> objects) {
+        for (Object o : objects) {
+            tx.session.merge(o);
+        }
+    }
     public void updateAll(List<?> objects) {
         Transaction tx = null;
         try(var session = sessionFactory.openSession()) {

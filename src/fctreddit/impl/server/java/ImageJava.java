@@ -24,11 +24,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class ImageJava extends JavaServer implements Image {
-    private static Logger Log = Logger.getLogger(ImageJava.class.getName());
+    private static final Logger Log = Logger.getLogger(ImageJava.class.getName());
+    private static final int TIMEOUT = 30000;
 
     private static final String PATH = "home/sd/images/";
-    private static final Map<String, List<String>> refferenceCounter = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, Void>> referenceCounter = new ConcurrentHashMap<>();
     private static final Map<String, Long> gracePeriod = new ConcurrentHashMap<>();
+
+    private static KafkaPublisher kafkaPublisher;
+    private static KafkaSubscriber kafkaSubscriber;
 
     public ImageJava() {
     }
@@ -95,6 +99,12 @@ public class ImageJava extends JavaServer implements Image {
         if (!user.isOK())
             return Result.error(user.error());
 
+        kafkaPublisher.publish(Image.DELETED_IMAGE_TOPIC, userId + "/" + imageId);
+
+        return deleteImageHelper(userId, imageId);
+    }
+
+    private static Result<Void> deleteImageHelper(String userId, String imageId) {
         Path imagePath = Paths.get(PATH, userId, imageId);
         try {
             Files.delete(imagePath);
@@ -102,20 +112,74 @@ public class ImageJava extends JavaServer implements Image {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         } catch (Exception e) {
             Log.severe(e.toString());
-            Log.severe("Exception deleting image " + imageId + " for user " + userId + " in path " + imagePath.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-
         return Result.ok();
     }
 
-    private void startSubscriber(KafkaSubscriber subscriber) {
+    private static void startSubscriber(KafkaSubscriber subscriber) {
         subscriber.start(new RecordProcessor() {
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
-
+                boolean addReference = Boolean.parseBoolean(r.key());
+                String[] parts = r.value().split(" ");
+                String postId = parts[0];
+                String userIdImageId = parts[1];
+                synchronized (referenceCounter) {
+                    if (addReference) {
+                        if (!referenceCounter.containsKey(userIdImageId)) {
+                            Map<String, Void> map = new ConcurrentHashMap<>();
+                            referenceCounter.put(userIdImageId, map);
+                        }
+                        referenceCounter.get(userIdImageId).put(postId, null);
+                    } else {
+                        Map<String, Void> map = referenceCounter.get(userIdImageId);
+                        if (map != null){
+                            map.remove(postId);
+                        }
+                    }
+                    if (referenceCounter.get(userIdImageId).isEmpty() &&
+                            (!gracePeriod.containsKey(userIdImageId) || System.currentTimeMillis() - gracePeriod.get(userIdImageId) > TIMEOUT)) {
+                        referenceCounter.remove(userIdImageId);
+                        String[] split = userIdImageId.split("/");
+                        deleteImageHelper(split[0], split[1]);
+                    }
+                }
             }
         });
+    }
+
+    private static void gracePeriodCleanup() {
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(TIMEOUT);
+                } catch (InterruptedException e) {
+                    // Do nothing
+                }
+                synchronized (gracePeriod) {
+                    for (Map.Entry<String, Long> entry : gracePeriod.entrySet()) {
+                        if (System.currentTimeMillis() - entry.getValue() >= TIMEOUT) {
+                            gracePeriod.remove(entry.getKey());
+                            if (referenceCounter.get(entry.getKey()).isEmpty()) {
+                                String[] parsedURI = entry.getKey().split("/");
+                                deleteImageHelper(parsedURI[0], parsedURI[1]);
+                            }
+                        }
+                    }
+                }
+            }
+        }).start();
+    }
+
+    public static void setPublisher(KafkaPublisher publisher) {
+        kafkaPublisher = publisher;
+    }
+
+    public static void setSubscriber(KafkaSubscriber subscriber) {
+        kafkaSubscriber = subscriber;
+        startSubscriber(kafkaSubscriber);
+        gracePeriodCleanup();
     }
 
 }

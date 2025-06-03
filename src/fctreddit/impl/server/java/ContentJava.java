@@ -26,6 +26,8 @@ public class ContentJava extends JavaServer implements Content {
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
     private Hibernate hibernate;
+    private static KafkaSubscriber subscriber;
+    private static KafkaPublisher publisher;
 
 
     public ContentJava() {
@@ -42,22 +44,23 @@ public class ContentJava extends JavaServer implements Content {
         Result<User> user = getUser(post.getAuthorId(), userPassword);
         if (!user.isOK())
             return Result.error(user.error());
+        Hibernate.TX tx = hibernate.beginTransaction();
 
         try {
             if (post.getParentUrl() != null && !post.getParentUrl().isBlank()) {
                 String parentId = parseUrl(post.getParentUrl());
-                if (hibernate.get(Post.class, parentId) == null)
+                if (hibernate.get(tx, Post.class, parentId) == null)
                     return Result.error(Result.ErrorCode.NOT_FOUND);
 
                 lockMap.putIfAbsent(parentId, new Object());
                 Object lock = lockMap.get(parentId);
                 synchronized (lock) {
-                    hibernate.persist(post);
+                    hibernate.persist(tx, post);
                     lock.notifyAll();
                 }
                 lockMap.remove(parentId);
             } else {
-                hibernate.persist(post);
+                hibernate.persist(tx, post);
             }
 
         } catch (Exception e) {
@@ -161,6 +164,13 @@ public class ContentJava extends JavaServer implements Content {
             if (!res.isOK())
                 return Result.error(res.error());
             hibernate.update(oldPost);
+
+            if (post.getMediaUrl() != null) {
+                if (oldPost.getMediaUrl() != null) {
+                    publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "false", oldPost.getMediaUrl());
+                }
+                publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "true", post.getMediaUrl());
+            }
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -188,7 +198,9 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.deleteAll(toDelete);
             if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
-
+            for(Post deletedPost: toDelete){
+                publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "false",deletedPost.getPostId());
+            }
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -452,13 +464,29 @@ public class ContentJava extends JavaServer implements Content {
         return imageId;
     }
 
-    private void startSubscriber(KafkaSubscriber subscriber) {
+    private static void startSubscriber(KafkaSubscriber subscriber) {
         subscriber.start(new RecordProcessor() {
+            Hibernate hibernate = Hibernate.getInstance();
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
-
+                Hibernate.TX tx = hibernate.beginTransaction();
+                String imageToRemove = r.value();
+                List<Post> posts = hibernate.jpql(tx, "SELECT p from Post WHERE p.mediaUrl LIKE '%" + imageToRemove + "'", Post.class);
+                for (Post post : posts) {
+                    post.setMediaUrl(null);
+                }
+                hibernate.updateAll(tx, posts);
             }
         });
     }
+
+   public static void setPublisher(KafkaPublisher publisher) {
+        ContentJava.publisher = publisher;
+   }
+
+   public static void setSubscriber(KafkaSubscriber subscriber) {
+        ContentJava.subscriber = subscriber;
+        startSubscriber(subscriber);
+   }
 
 }

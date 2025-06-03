@@ -35,13 +35,13 @@ public class ContentServer {
 
 
     public static void main(String[] args) {
-        //KafkaUtils.createTopic(Image.IMAGE_REFERENCE_COUNTER_TOPIC);
-        //KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
-        //KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
-        //KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
-        //ContentJava java = new ContentJava();
-        //java.setPublisher(publisher);
-        //java.setSubscriber(subscriber);
+        KafkaUtils.createTopic(Image.IMAGE_REFERENCE_COUNTER_TOPIC);
+        KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
+        KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
+        KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+        ContentJava.setPublisher(publisher);
+        ContentJava.setSubscriber(subscriber);
+
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ContentResource.class);
