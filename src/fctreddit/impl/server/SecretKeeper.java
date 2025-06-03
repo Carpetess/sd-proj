@@ -2,7 +2,7 @@ package fctreddit.impl.server;
 
 public class SecretKeeper {
     private static SecretKeeper instance;
-    private String secret;
+    private String secret = null;
 
     public static SecretKeeper getInstance() {
         if (instance == null)
@@ -10,7 +10,6 @@ public class SecretKeeper {
         return instance;
     }
     private SecretKeeper() {
-        secret=null;
     }
 
     public void setSecret(String secret) {
