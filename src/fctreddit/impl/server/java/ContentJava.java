@@ -9,6 +9,11 @@ import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.server.Hibernate;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.kafka.KafkaPublisher;
+import fctreddit.impl.server.kafka.KafkaSubscriber;
+import fctreddit.impl.server.kafka.KafkaUtils;
+import fctreddit.impl.server.kafka.RecordProcessor;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +26,8 @@ public class ContentJava extends JavaServer implements Content {
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
     private final Hibernate hibernate;
+    private static KafkaPublisher publisher;
+    private static KafkaSubscriber subscriber;
 
     public ContentJava() {
         hibernate = Hibernate.getInstance();
@@ -32,7 +39,6 @@ public class ContentJava extends JavaServer implements Content {
         post.setCreationTimestamp(System.currentTimeMillis());
         if (!isValid(post))
             return Result.error(Result.ErrorCode.BAD_REQUEST);
-
 
         Result<User> user = getUser(post.getAuthorId(), userPassword);
         if (!user.isOK())
@@ -457,6 +463,24 @@ public class ContentJava extends JavaServer implements Content {
         String[] slice = url.split("/");
         String imageId = slice[slice.length - 1];
         return imageId;
+    }
+
+    private void startSubscriber(KafkaSubscriber subscriber) {
+        subscriber.start(new RecordProcessor() {
+            @Override
+            public void onReceive(ConsumerRecord<String, String> r) {
+
+            }
+        });
+    }
+
+    public void setSubscriber(KafkaSubscriber subscriber) {
+        this.subscriber = subscriber;
+        startSubscriber(subscriber);
+    }
+
+    public void setPublisher(KafkaPublisher publisher) {
+        this.publisher = publisher;
     }
 
 }

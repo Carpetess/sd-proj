@@ -1,8 +1,10 @@
 package fctreddit.impl.server.grpc;
 
+import fctreddit.api.java.Users;
 import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.JavaServer;
+import fctreddit.impl.server.java.UsersJava;
 import io.grpc.Server;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyServerBuilder;
@@ -32,6 +34,7 @@ public class UsersServer {
 
 
     public static void main(String[] args) throws Exception {
+        new UsersJava();
         String keyStoreFileName = System.getProperty("javax.net.ssl.keyStore");
         String keyStorePassword = System.getProperty("javax.net.ssl.keyStorePassword");
 

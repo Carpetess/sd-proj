@@ -2,6 +2,7 @@ package fctreddit.impl.server.rest;
 
 import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.java.ImageJava;
 import fctreddit.impl.server.java.JavaServer;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -29,6 +30,7 @@ public class ImageServer {
 
 
     public static void main(String[] args) {
+        new ImageJava();
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(ImageResource.class);

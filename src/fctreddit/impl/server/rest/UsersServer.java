@@ -3,6 +3,7 @@ package fctreddit.impl.server.rest;
 import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.JavaServer;
+import fctreddit.impl.server.java.UsersJava;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
@@ -27,6 +28,7 @@ public class UsersServer {
     private static final String SERVER_URI_FMT = "https://%s:%s/rest";
 
     public static void main(String[] args) {
+        new UsersJava();
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(UserResource.class);

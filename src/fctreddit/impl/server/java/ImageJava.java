@@ -4,8 +4,11 @@ import fctreddit.api.data.User;
 import fctreddit.api.java.Image;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
-import fctreddit.impl.client.ImageClient;
-import fctreddit.impl.client.UsersClient;
+import fctreddit.impl.server.kafka.KafkaPublisher;
+import fctreddit.impl.server.kafka.KafkaSubscriber;
+import fctreddit.impl.server.kafka.KafkaUtils;
+import fctreddit.impl.server.kafka.RecordProcessor;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,15 +17,33 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class ImageJava extends JavaServer implements Image {
     private static Logger Log = Logger.getLogger(ImageJava.class.getName());
 
     private static final String PATH = "home/sd/images/";
+    private static final Map<String, List<String>> refferenceCounter = new ConcurrentHashMap<>();
+    private static final Map<String, Long> gracePeriod = new ConcurrentHashMap<>();
 
-    public ImageJava() {}
+    private static KafkaPublisher publisher;
+    private static KafkaSubscriber subscriber;
+
+    public ImageJava() {
+        if (publisher == null) {
+            KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
+            publisher = KafkaPublisher.createPublisher("kafka:9092");
+        }
+        if (subscriber == null) {
+            KafkaUtils.createTopic(IMAGE_REFERENCE_COUNTER_TOPIC);
+            subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(IMAGE_REFERENCE_COUNTER_TOPIC));
+            startSubscriber(subscriber);
+        }
+    }
 
     @Override
     public Result<String> createImage(String userId, byte[] imageContents, String password) {
@@ -98,6 +119,15 @@ public class ImageJava extends JavaServer implements Image {
         }
 
         return Result.ok();
+    }
+
+    private void startSubscriber(KafkaSubscriber subscriber) {
+        subscriber.start(new RecordProcessor() {
+            @Override
+            public void onReceive(ConsumerRecord<String, String> r) {
+
+            }
+        });
     }
 
 }

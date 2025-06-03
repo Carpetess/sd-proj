@@ -1,6 +1,7 @@
 package fctreddit.impl.server.grpc;
 
 import fctreddit.impl.server.SecretKeeper;
+import fctreddit.impl.server.java.ImageJava;
 import fctreddit.impl.server.java.JavaServer;
 import fctreddit.impl.server.rest.UsersServer;
 import fctreddit.impl.server.Discovery;
@@ -37,6 +38,7 @@ public class ImageServer {
 
 
     public static void main(String[] args) throws Exception {
+        new ImageJava();
         String keyStoreFileName = System.getProperty("javax.net.ssl.keyStore");
         String keyStorePassword = System.getProperty("javax.net.ssl.keyStorePassword");
 

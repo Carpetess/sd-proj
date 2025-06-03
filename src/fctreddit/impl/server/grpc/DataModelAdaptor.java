@@ -9,11 +9,11 @@ public class DataModelAdaptor {
 
     public static User GrpcUser_to_User(GrpcUser from )  {
         return new User(
-                from.getUserId(),
-                from.getFullName(),
-                from.getEmail(),
-                from.getPassword(),
-                from.getAvatarUrl());
+                from.hasUserId() ? from.getUserId() : null,
+                from.hasFullName() ? from.getFullName() : null,
+                from.hasEmail()? from.getEmail() : null,
+                from.hasPassword()? from.getPassword() : null,
+                from.hasAvatarUrl() ? from.getAvatarUrl() : null);
     }
 
     public static GrpcUser User_to_GrpcUser(User from )  {
@@ -31,14 +31,14 @@ public class DataModelAdaptor {
 
     public static Post GrpcPost_to_Post(GrpcPost from) {
         return new Post (
-                from.getPostId(),
-                from.getAuthorId(),
-                from.getCreationTimestamp(),
-                from.getContent(),
-                from.getMediaUrl(),
-                from.getParentUrl(),
-                from.getUpVote(),
-                from.getDownVote()
+                from.hasPostId() ? from.getPostId() : null,
+                from.hasAuthorId() ? from.getAuthorId() : null,
+                from.hasCreationTimestamp() ? from.getCreationTimestamp() : null,
+                from.hasContent() ? from.getContent() : null,
+                from.hasMediaUrl()? from.getMediaUrl() : null,
+                from.hasParentUrl()? from.getParentUrl() : null,
+                from.hasUpVote() ? from.getUpVote() : 0,
+                from.hasDownVote() ? from.getDownVote() : 0
         );
     }
 
