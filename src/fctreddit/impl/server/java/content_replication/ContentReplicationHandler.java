@@ -135,12 +135,31 @@ public class ContentReplicationHandler implements Content {
 
     @Override
     public Result<Integer> getupVotes(String postId) {
-        return null;
+        Post post;
+        try {
+            post = hibernate.get(Post.class, postId);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+
+        return Result.ok(post.getUpVote());
     }
 
     @Override
     public Result<Integer> getDownVotes(String postId) {
-        return null;
+                Post post;
+        try {
+            post = hibernate.get(Post.class, postId);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        if (post == null)
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        return Result.ok(post.getDownVote());
     }
 
     @Override
