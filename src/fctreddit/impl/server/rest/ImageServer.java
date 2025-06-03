@@ -39,7 +39,7 @@ public class ImageServer {
         KafkaUtils.createTopic(Image.IMAGE_REFERENCE_COUNTER_TOPIC);
         KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
         KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
-        KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+        KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.IMAGE_REFERENCE_COUNTER_TOPIC));
         ImageJava.setPublisher(publisher);
         ImageJava.setSubscriber(subscriber);
 

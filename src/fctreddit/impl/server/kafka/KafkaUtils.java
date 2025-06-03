@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
 
 public class KafkaUtils {
+	private static final Logger Log = Logger.getLogger(KafkaUtils.class.getName());
 
 	public static void createTopics(List<String> topics) {
 		for(String topic: topics) {
@@ -23,14 +25,11 @@ public class KafkaUtils {
 	}
 
 	public static void createTopic(String topic, int numPartitions, int replicationFactor) {
-
 		try (AdminClient client = create()) {
 
 			List<NewTopic> list = new ArrayList<NewTopic>();
 			list.add(new NewTopic(topic, numPartitions, (short) replicationFactor));
-			
 			CreateTopicsResult result = client.createTopics(list);
-			
 			result.all().get();
 			System.err.printf("Topic %s was created successfully\n", topic);
 
@@ -38,14 +37,16 @@ public class KafkaUtils {
 		} catch (ExecutionException x) {
 			System.err.printf("Topic: %s already exists...\n", topic);
 			x.printStackTrace();
+			Log.severe(x.getMessage());
 		} catch (Exception e) {
 			e.printStackTrace();
+			Log.severe(e.getMessage());
 		}
 	}
 
 	static private AdminClient create() {
 		Properties props = new Properties();
-		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka:9092");
 		props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000");
 		return AdminClient.create(props);
 	}

@@ -44,12 +44,14 @@ public class ImageServer {
 
 
     public static void main(String[] args) throws Exception {
+        Log.info("Starting ImageServer");
         KafkaUtils.createTopic(Image.IMAGE_REFERENCE_COUNTER_TOPIC);
         KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
         KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
-        KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+        KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.IMAGE_REFERENCE_COUNTER_TOPIC));
         ImageJava.setPublisher(publisher);
         ImageJava.setSubscriber(subscriber);
+        Log.info("ImageJava started");
 
         String keyStoreFileName = System.getProperty("javax.net.ssl.keyStore");
         String keyStorePassword = System.getProperty("javax.net.ssl.keyStorePassword");

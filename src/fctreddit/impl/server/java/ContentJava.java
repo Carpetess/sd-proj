@@ -24,7 +24,7 @@ public class ContentJava extends JavaServer implements Content {
 
     private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
 
-    Logger Log = Logger.getLogger(ContentJava.class.getName());
+    private static final Logger Log = Logger.getLogger(ContentJava.class.getName());
     private Hibernate hibernate;
     private static KafkaSubscriber subscriber;
     private static KafkaPublisher publisher;
@@ -62,6 +62,10 @@ public class ContentJava extends JavaServer implements Content {
             } else {
                 hibernate.persist(tx, post);
             }
+            hibernate.commitTransaction(tx);
+
+            if(post.getMediaUrl() != null)
+                changeReferenceOfImage(post, true);
 
         } catch (Exception e) {
             Log.severe(e.toString());
@@ -159,18 +163,19 @@ public class ContentJava extends JavaServer implements Content {
             if (!comments.isEmpty() || !votes.isEmpty())
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
 
+            if (post.getMediaUrl() != null) {
+                if (oldPost.getMediaUrl() != null) {
+                    changeReferenceOfImage(oldPost, false);
+                }
+                changeReferenceOfImage(post, true);
+            }
+
             update(post, oldPost);
             Result<User> res = getUser(oldPost.getAuthorId(), userPassword);
             if (!res.isOK())
                 return Result.error(res.error());
             hibernate.update(oldPost);
 
-            if (post.getMediaUrl() != null) {
-                if (oldPost.getMediaUrl() != null) {
-                    publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "false", oldPost.getMediaUrl());
-                }
-                publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "true", post.getMediaUrl());
-            }
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -199,7 +204,7 @@ public class ContentJava extends JavaServer implements Content {
             if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
             for(Post deletedPost: toDelete){
-                publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "false",deletedPost.getPostId());
+                changeReferenceOfImage(post, false);
             }
         } catch (Exception e) {
             Log.severe(e.toString());
@@ -471,11 +476,12 @@ public class ContentJava extends JavaServer implements Content {
             public void onReceive(ConsumerRecord<String, String> r) {
                 Hibernate.TX tx = hibernate.beginTransaction();
                 String imageToRemove = r.value();
-                List<Post> posts = hibernate.jpql(tx, "SELECT p from Post WHERE p.mediaUrl LIKE '%" + imageToRemove + "'", Post.class);
+                List<Post> posts = hibernate.jpql(tx, "SELECT p FROM Post p WHERE p.mediaUrl LIKE '%" + imageToRemove + "'", Post.class);
                 for (Post post : posts) {
                     post.setMediaUrl(null);
                 }
                 hibernate.updateAll(tx, posts);
+                hibernate.commitTransaction(tx);
             }
         });
     }
@@ -487,6 +493,18 @@ public class ContentJava extends JavaServer implements Content {
    public static void setSubscriber(KafkaSubscriber subscriber) {
         ContentJava.subscriber = subscriber;
         startSubscriber(subscriber);
+   }
+
+   private void changeReferenceOfImage(Post post, boolean add){
+        String[] slice = post.getMediaUrl().split("/");
+        String imageId = slice[slice.length - 1];
+        String userId = slice[slice.length - 2];
+        String message = post.getPostId() + " " + userId + "/" + imageId;
+        if (add){
+            publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "true", message);
+        } else{
+            publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "false", message);
+        }
    }
 
 }

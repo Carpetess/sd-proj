@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,8 +29,8 @@ public class ImageJava extends JavaServer implements Image {
     private static final int TIMEOUT = 30000;
 
     private static final String PATH = "home/sd/images/";
-    private static final Map<String, Map<String, Void>> referenceCounter = new ConcurrentHashMap<>();
-    private static final Map<String, Long> gracePeriod = new ConcurrentHashMap<>();
+    private static Map<String, Map<String, Boolean>> referenceCounter = new ConcurrentHashMap<>();
+    private static Map<String, Long> gracePeriod = new ConcurrentHashMap<>();
 
     private static KafkaPublisher kafkaPublisher;
     private static KafkaSubscriber kafkaSubscriber;
@@ -70,7 +71,8 @@ public class ImageJava extends JavaServer implements Image {
 
     @Override
     public Result<byte[]> getImage(String userId, String imageId) {
-        Log.info("Getting image " + imageId + " for user " + userId);
+        Log.info("Getting image " + imageId + " for user " + userId + "\n");
+
 
         Path imagePath = Paths.get(PATH, userId, imageId);
         File imageFile = imagePath.toFile();
@@ -114,6 +116,7 @@ public class ImageJava extends JavaServer implements Image {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
+        Log.warning("Deleted image " + imageId + " for user " + userId);
         return Result.ok();
     }
 
@@ -122,27 +125,50 @@ public class ImageJava extends JavaServer implements Image {
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
                 boolean addReference = Boolean.parseBoolean(r.key());
+                Log.info("Received message: " + r.value());
                 String[] parts = r.value().split(" ");
+                if (parts.length < 2) {
+                    Log.warning("Invalid message format: " + r.value());
+                    return;
+                }
+
                 String postId = parts[0];
                 String userIdImageId = parts[1];
-                synchronized (referenceCounter) {
+
+                referenceCounter.compute(userIdImageId, (key, currentRefs) -> {
                     if (addReference) {
-                        if (!referenceCounter.containsKey(userIdImageId)) {
-                            Map<String, Void> map = new ConcurrentHashMap<>();
-                            referenceCounter.put(userIdImageId, map);
+                        if (currentRefs == null) {
+                            currentRefs = new ConcurrentHashMap<>();
                         }
-                        referenceCounter.get(userIdImageId).put(postId, null);
+                        currentRefs.put(postId, true);
+                        gracePeriod.remove(key);
+                        return currentRefs;
                     } else {
-                        Map<String, Void> map = referenceCounter.get(userIdImageId);
-                        if (map != null){
-                            map.remove(postId);
+                        if (currentRefs != null) {
+                            currentRefs.remove(postId);
+                            if (currentRefs.isEmpty()) {
+                                gracePeriod.putIfAbsent(key, System.currentTimeMillis());
+                                return currentRefs;
+                            }
+                            return currentRefs;
                         }
+                        return null;
                     }
-                    if (referenceCounter.get(userIdImageId).isEmpty() &&
-                            (!gracePeriod.containsKey(userIdImageId) || System.currentTimeMillis() - gracePeriod.get(userIdImageId) > TIMEOUT)) {
-                        referenceCounter.remove(userIdImageId);
-                        String[] split = userIdImageId.split("/");
+                });
+
+                Map<String, Boolean> refs = referenceCounter.get(userIdImageId);
+                Long graceStart = gracePeriod.get(userIdImageId);
+
+                if ((refs == null || refs.isEmpty()) &&
+                        (graceStart == null || System.currentTimeMillis() - graceStart >= TIMEOUT)) {
+                    referenceCounter.remove(userIdImageId);
+                    gracePeriod.remove(userIdImageId);
+                    String[] split = userIdImageId.split("/");
+                    if (split.length == 2) {
                         deleteImageHelper(split[0], split[1]);
+                        Log.info("Deleted image for: " + userIdImageId);
+                    } else {
+                        Log.warning("Invalid userId/imageId format: " + userIdImageId);
                     }
                 }
             }
@@ -155,16 +181,30 @@ public class ImageJava extends JavaServer implements Image {
                 try {
                     Thread.sleep(TIMEOUT);
                 } catch (InterruptedException e) {
-                    // Do nothing
+                    Thread.currentThread().interrupt();
+                    return;
                 }
-                synchronized (gracePeriod) {
-                    for (Map.Entry<String, Long> entry : gracePeriod.entrySet()) {
-                        if (System.currentTimeMillis() - entry.getValue() >= TIMEOUT) {
-                            gracePeriod.remove(entry.getKey());
-                            if (referenceCounter.get(entry.getKey()).isEmpty()) {
-                                String[] parsedURI = entry.getKey().split("/");
-                                deleteImageHelper(parsedURI[0], parsedURI[1]);
-                            }
+
+                List<String> toRemove = new ArrayList<>();
+                long now = System.currentTimeMillis();
+
+                for (Map.Entry<String, Long> entry : gracePeriod.entrySet()) {
+                    if (now - entry.getValue() >= TIMEOUT) {
+                        toRemove.add(entry.getKey());
+                    }
+                }
+
+                for (String key : toRemove) {
+                    gracePeriod.remove(key);
+                    Map<String, Boolean> refs = referenceCounter.get(key);
+                    if (refs == null || refs.isEmpty()) {
+                        referenceCounter.remove(key);
+                        String[] parsedURI = key.split("/");
+                        if (parsedURI.length == 2) {
+                            deleteImageHelper(parsedURI[0], parsedURI[1]);
+                            Log.info("Deleted image via cleanup for: " + key);
+                        } else {
+                            Log.warning("Invalid key format during cleanup: " + key);
                         }
                     }
                 }
