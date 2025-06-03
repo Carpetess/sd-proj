@@ -33,12 +33,11 @@ public class ImageServer {
 
     public static int PORT = 8081;
     public static final String SERVICE = "Image";
-    private static final String SERVER_URI_FMT = "http://%s:%s/grpc";
+    private static final String SERVER_URI_FMT = "grpc://%s:%s/grpc";
     public static String serverURI;
 
 
     public static void main(String[] args) throws Exception {
-        new ImageJava();
         String keyStoreFileName = System.getProperty("javax.net.ssl.keyStore");
         String keyStorePassword = System.getProperty("javax.net.ssl.keyStorePassword");
 

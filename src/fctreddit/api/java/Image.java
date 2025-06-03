@@ -3,8 +3,8 @@ package fctreddit.api.java;
 import java.io.IOException;
 
 public interface Image {
-	static final String DELETED_IMAGE_TOPIC = "Deleted Image Topic";
-	static final String IMAGE_REFERENCE_COUNTER_TOPIC = "Image Reference Counter Topic";
+	static final String DELETED_IMAGE_TOPIC = "deleted_image";
+	static final String IMAGE_REFERENCE_COUNTER_TOPIC = "image_reference_counter";
 
 	/**
 	 * Create an image

@@ -25,9 +25,8 @@ public class ContentJava extends JavaServer implements Content {
     private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
 
     Logger Log = Logger.getLogger(ContentJava.class.getName());
-    private final Hibernate hibernate;
-    private static KafkaPublisher publisher;
-    private static KafkaSubscriber subscriber;
+    private Hibernate hibernate;
+
 
     public ContentJava() {
         hibernate = Hibernate.getInstance();
@@ -80,7 +79,11 @@ public class ContentJava extends JavaServer implements Content {
         try {
             switch (sortOrder) {
                 case MOST_UP_VOTES ->
-                        posts = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.creationTimestamp >= " + timestamp + " AND p.parentUrl IS NULL ORDER BY p.upVote DESC, p.postId ASC", String.class);
+                        posts = hibernate.sql("SELECT postId FROM (SELECT p.postId as postId, "
+						+ "(SELECT COUNT(*) FROM Vote pv where p.postId = pv.postId AND pv.upVote='true') as upVotes "
+						+ "from Post p WHERE "
+						+ (timestamp > 0 ? "p.creationTimestamp >= '" + timestamp + "' AND " : "")
+						+ "p.parentURL IS NULL) ORDER BY upVotes DESC, postID ASC", String.class);
                 case MOST_REPLIES -> {
                     posts = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.creationTimestamp >= " + timestamp + " AND p.parentUrl IS NULL ORDER BY " + commentCountQuery + " DESC,  p.postId ASC", String.class);
                 }
@@ -97,20 +100,17 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Post> getPost(String postId) {
-        Log.info("Getting post " + postId);
-        if (postId == null)
-            return Result.error(Result.ErrorCode.BAD_REQUEST);
-
-        Post post;
-        try {
-            post = hibernate.get(Post.class, postId);
-        } catch (Exception e) {
-            Log.severe(e.toString());
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
-        if (post == null)
-            return Result.error(Result.ErrorCode.NOT_FOUND);
-        return Result.ok(post);
+	Post p = hibernate.get(Post.class, postId);
+		Result<Integer> res = this.getupVotes(postId);
+		if (res.isOK())
+			p.setUpVote(res.value());
+		res = this.getDownVotes(postId);
+		if (res.isOK())
+			p.setDownVote(res.value());
+		if (p != null)
+			return Result.ok(p);
+		else
+			return Result.error(Result.ErrorCode.NOT_FOUND);
     }
 
     @Override
@@ -228,13 +228,10 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
-        p.setUpVote(p.getUpVote() + 1);
-
-
         try {
-            hibernate.persistVote(tx, new Vote(userId, postId, true), p);
-            Log.info("Persisted vote");
+            hibernate.persist(tx, new Vote(userId, postId, true));
             hibernate.commitTransaction(tx);
+            Log.info("Persisted vote");
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
@@ -269,10 +266,9 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
-        p.setUpVote(p.getUpVote() - 1);
 
         try {
-            hibernate.deleteVote(tx, i.iterator().next(), p);
+            hibernate.delete(tx, i.iterator().next());
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -303,11 +299,10 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
-            p.setDownVote(p.getDownVote() + 1);
         Log.info("Updated post");
 
         try {
-            hibernate.persistVote(tx, new Vote(userId, postId, false), p);
+            hibernate.persist(tx, new Vote(userId, postId, false));
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -343,10 +338,9 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
-        p.setDownVote(p.getDownVote() - 1);
 
         try {
-            hibernate.deleteVote(tx, i.iterator().next(), p);
+            hibernate.delete(tx, i.iterator().next());
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
             hibernate.abortTransaction(tx);
@@ -359,8 +353,10 @@ public class ContentJava extends JavaServer implements Content {
     @Override
     public Result<Integer> getupVotes(String postId) {
         Post post;
+        int upvotes;
         try {
             post = hibernate.get(Post.class, postId);
+            upvotes = hibernate.sql("SELECT * from Vote pv WHERE pv.postId='" + postId + "' AND pv.upVote='true'", Vote.class).size();
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
@@ -368,21 +364,23 @@ public class ContentJava extends JavaServer implements Content {
         if (post == null)
             return Result.error(Result.ErrorCode.NOT_FOUND);
 
-        return Result.ok(post.getUpVote());
+        return Result.ok(upvotes);
     }
 
     @Override
     public Result<Integer> getDownVotes(String postId) {
         Post post;
+        int downvotes;
         try {
             post = hibernate.get(Post.class, postId);
+            downvotes = hibernate.sql("SELECT * from Vote pv WHERE pv.postId='" + postId + "' AND pv.upVote='false'", Vote.class).size();
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         if (post == null)
             return Result.error(Result.ErrorCode.NOT_FOUND);
-        return Result.ok(post.getDownVote());
+        return Result.ok(downvotes);
     }
 
 
@@ -420,17 +418,6 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(res.error());
         try {
             List<Vote> votes = hibernate.jpql(tx, "SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
-            List<Post> posts = new LinkedList<>();
-            for (Vote vote : votes) {
-                Post post = hibernate.get(tx, Post.class, vote.getPostId());
-                if (vote.isUpVote())
-                    post.setUpVote(post.getUpVote() - 1);
-
-                if (!vote.isUpVote())
-                    post.setDownVote(post.getDownVote() - 1);
-                posts.add(post);
-            }
-            hibernate.updateAll(posts);
             hibernate.deleteAll(votes);
         } catch (Exception e) {
             Log.severe(e.toString());
@@ -472,15 +459,6 @@ public class ContentJava extends JavaServer implements Content {
 
             }
         });
-    }
-
-    public void setSubscriber(KafkaSubscriber subscriber) {
-        this.subscriber = subscriber;
-        startSubscriber(subscriber);
-    }
-
-    public void setPublisher(KafkaPublisher publisher) {
-        this.publisher = publisher;
     }
 
 }

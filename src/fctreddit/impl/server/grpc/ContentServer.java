@@ -39,17 +39,17 @@ public class ContentServer {
 
     public static int PORT = 8081;
     public static final String SERVICE = "Content";
-    private static final String SERVER_URI_FMT = "https://%s:%s/grpc";
+    private static final String SERVER_URI_FMT = "grpc://%s:%s/grpc";
 
 
     public static void main(String[] args) throws Exception {
-        KafkaUtils.createTopic(Image.IMAGE_REFERENCE_COUNTER_TOPIC);
-        KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
-        KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
-        KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
-        ContentJava java = new ContentJava();
-        java.setPublisher(publisher);
-        java.setSubscriber(subscriber);
+        //KafkaUtils.createTopic(Image.IMAGE_REFERENCE_COUNTER_TOPIC);
+        //KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
+        //KafkaUtils.createTopic(Image.DELETED_IMAGE_TOPIC);
+        //KafkaSubscriber subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(Image.DELETED_IMAGE_TOPIC));
+        //ContentJava java = new ContentJava();
+        //java.setPublisher(publisher);
+        //java.setSubscriber(subscriber);
         String keyStoreFileName = System.getProperty("javax.net.ssl.keyStore");
         String keyStorePassword = System.getProperty("javax.net.ssl.keyStorePassword");
 

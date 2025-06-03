@@ -97,26 +97,6 @@ public class Hibernate {
         }
     }
 
-    public void persistVote(TX tx, Vote vote, Post post){
-        try{
-            tx.session.persist(vote);
-            tx.session.merge(post);
-            tx.tx.commit();
-        } finally {
-            tx.session.close();
-        }
-
-    }
-
-    public void deleteVote(TX tx, Vote vote, Post post){
-        try {
-            tx.session.remove(vote);
-            tx.session.merge(post);
-        } finally {
-            tx.session.close();
-        }
-
-    }
 
     /**
      * Gets one object from storage

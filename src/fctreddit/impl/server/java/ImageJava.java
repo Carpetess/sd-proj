@@ -30,19 +30,7 @@ public class ImageJava extends JavaServer implements Image {
     private static final Map<String, List<String>> refferenceCounter = new ConcurrentHashMap<>();
     private static final Map<String, Long> gracePeriod = new ConcurrentHashMap<>();
 
-    private static KafkaPublisher publisher;
-    private static KafkaSubscriber subscriber;
-
     public ImageJava() {
-        if (publisher == null) {
-            KafkaUtils.createTopic(DELETED_IMAGE_TOPIC);
-            publisher = KafkaPublisher.createPublisher("kafka:9092");
-        }
-        if (subscriber == null) {
-            KafkaUtils.createTopic(IMAGE_REFERENCE_COUNTER_TOPIC);
-            subscriber = KafkaSubscriber.createSubscriber("kafka:9092", List.of(IMAGE_REFERENCE_COUNTER_TOPIC));
-            startSubscriber(subscriber);
-        }
     }
 
     @Override
