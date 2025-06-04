@@ -17,10 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -75,13 +72,6 @@ public class ImageJava extends JavaServer implements Image {
         Log.info("Getting image " + imageId + " for user " + userId + "\n");
 
         String userIdImageId = userId + "/" + imageId;
-        if(gracePeriod.containsKey(userIdImageId)){
-            Log.info("In grace period: "+ (System.currentTimeMillis()-gracePeriod.get(userIdImageId))+ "\n");
-            if(referenceCounter.containsKey(userIdImageId)){
-                Log.info("Also btw uhh ref: " + referenceCounter.get(userIdImageId).size() + "\n");
-            }
-
-        }
         if(gracePeriod.containsKey(userIdImageId)&&System.currentTimeMillis()-gracePeriod.get(userIdImageId)>=TIMEOUT&&referenceCounter.containsKey(userIdImageId)&&referenceCounter.get(userIdImageId).isEmpty()) {
             deleteImageHelper(userId,imageId);
             referenceCounter.remove(userIdImageId);
@@ -193,35 +183,25 @@ public class ImageJava extends JavaServer implements Image {
     }
 
     private static void gracePeriodCleanup() {
-        new Thread(() -> {
+       new Thread(() -> {
             while (true) {
                 try {
                     Thread.sleep(TIMEOUT);
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
+                    // Do nothing
                 }
-
-                List<String> toRemove = new ArrayList<>();
-                long now = System.currentTimeMillis();
-
-                for (Map.Entry<String, Long> entry : gracePeriod.entrySet()) {
-                    if (now - entry.getValue() >= TIMEOUT) {
-                        toRemove.add(entry.getKey());
+                List<String> keysToRemove = new LinkedList<>();
+                synchronized (gracePeriod) {
+                    for (Map.Entry<String, Long> entry : gracePeriod.entrySet()) {
+                        if (System.currentTimeMillis() - entry.getValue() >= TIMEOUT)
+                            keysToRemove.add(entry.getKey());
                     }
-                }
-
-                for (String key : toRemove) {
-                    gracePeriod.remove(key);
-                    Map<String, Boolean> refs = referenceCounter.get(key);
-                    if (refs == null || refs.isEmpty()) {
-                        referenceCounter.remove(key);
-                        String[] parsedURI = key.split("/");
-                        if (parsedURI.length == 2) {
+                    for (String key : keysToRemove) {
+                        gracePeriod.remove(key);
+                        if (!referenceCounter.containsKey(key) || referenceCounter.get(key).isEmpty()) {
+                            referenceCounter.remove(key);
+                            String[] parsedURI = key.split("/");
                             deleteImageHelper(parsedURI[0], parsedURI[1]);
-                            Log.info("Deleted image via cleanup for: " + key);
-                        } else {
-                            Log.warning("Invalid key format during cleanup: " + key);
                         }
                     }
                 }
