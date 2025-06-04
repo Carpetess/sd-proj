@@ -3,11 +3,19 @@ package fctreddit.impl.server.java.contentReplication;
 import fctreddit.api.data.Post;
 import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
+import fctreddit.impl.server.Hibernate;
 import fctreddit.impl.server.java.JavaServer;
+import fctreddit.impl.server.kafka.KafkaPublisher;
+import fctreddit.impl.server.kafka.KafkaSubscriber;
+import fctreddit.impl.server.kafka.SyncPoint;
 
 import java.util.List;
 
 public class ContentReplicaProcessor extends JavaServer implements Content {
+    private Hibernate hibernate;
+    private SyncPoint syncPoint;
+
+    private static KafkaPublisher kafkaPublisher;
     @Override
     public Result<String> createPost(Post post, String userPassword) {
         return null;
@@ -71,6 +79,12 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
     @Override
     public Result<Void> removeUserTrace(String userId, String secret) {
         return null;
+    }
+
+
+
+    private static void setPublisher(KafkaPublisher publisher) {
+        kafkaPublisher = publisher;
     }
 
 }

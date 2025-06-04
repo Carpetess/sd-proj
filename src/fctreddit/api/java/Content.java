@@ -18,8 +18,7 @@ public interface Content {
 	static final String REMOVE_DOWNVOTE_POST = "removeDownvotePost";
 	static final String GET_UPVOTE = "getUpvote";
 	static final String GET_DOWNVOTE = "getDownvote";
-	static final String UPDATE_POST_OWNER = "updatePostOwner";
-	static final String REMOVE_ALL_USER_VOTES = "removeAllUserVotes";
+	static final String REMOVE_USER_TRACE = "removeUserTrace";
 
 
 	static final String SEND_OPERATION = "send";

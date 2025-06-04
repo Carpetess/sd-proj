@@ -50,7 +50,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
         String postJson = gson.toJson(post);
         long offset = publishOperationToKafka(CREATE_POST, postJson, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok((String) res.value());
         }
         return Result.error(res.error());
@@ -108,13 +108,13 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<Post> updatePost(String postId, String userPassword, Post post) {
-        if (post == null ){
+        if (post == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
         String postJson = gson.toJson(post);
         long offset = publishOperationToKafka(UPDATE_POST, postId, userPassword, postJson);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok((Post) res.value());
         }
         return Result.error(res.error());
@@ -122,12 +122,12 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<Void> deletePost(String postId, String userPassword) {
-        if (postId == null){
+        if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
         long offset = publishOperationToKafka(DELETE_POST, postId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok();
         }
         return Result.error(res.error());
@@ -137,15 +137,15 @@ public class ContentReplicaPre extends JavaServer implements Content {
     @Override
     public Result<Void> upVotePost(String postId, String userId, String userPassword) {
         Result<User> userRes = getUser(userId, userPassword);
-        if (!userRes.isOK()){
+        if (!userRes.isOK()) {
             return Result.error(userRes.error());
         }
-        if (postId == null){
+        if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
         long offset = publishOperationToKafka(UPVOTE_POST, postId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok();
         }
         return Result.error(res.error());
@@ -155,15 +155,15 @@ public class ContentReplicaPre extends JavaServer implements Content {
     @Override
     public Result<Void> removeUpVotePost(String postId, String userId, String userPassword) {
         Result<User> userRes = getUser(userId, userPassword);
-        if (!userRes.isOK()){
+        if (!userRes.isOK()) {
             return Result.error(userRes.error());
         }
-        if (postId == null){
+        if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
         long offset = publishOperationToKafka(REMOVE_UPVOTE_POST, postId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok();
         }
         return Result.error(res.error());
@@ -172,15 +172,15 @@ public class ContentReplicaPre extends JavaServer implements Content {
     @Override
     public Result<Void> downVotePost(String postId, String userId, String userPassword) {
         Result<User> userRes = getUser(userId, userPassword);
-        if (!userRes.isOK()){
+        if (!userRes.isOK()) {
             return Result.error(userRes.error());
         }
-        if (postId == null){
+        if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
         long offset = publishOperationToKafka(DOWNVOTE_POST, postId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok();
         }
         return Result.error(res.error());
@@ -189,15 +189,15 @@ public class ContentReplicaPre extends JavaServer implements Content {
     @Override
     public Result<Void> removeDownVotePost(String postId, String userId, String userPassword) {
         Result<User> userRes = getUser(userId, userPassword);
-        if (!userRes.isOK()){
+        if (!userRes.isOK()) {
             return Result.error(userRes.error());
         }
-        if (postId == null){
+        if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
         long offset = publishOperationToKafka(REMOVE_DOWNVOTE_POST, postId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
-        if (res.isOK()){
+        if (res.isOK()) {
             return Result.ok();
         }
         return Result.error(res.error());
@@ -205,7 +205,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<Integer> getupVotes(String postId) {
-          Post post;
+        Post post;
         int downvotes;
         try {
             post = hibernate.get(Post.class, postId);
@@ -221,7 +221,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<Integer> getDownVotes(String postId) {
-          Post post;
+        Post post;
         int downvotes;
         try {
             post = hibernate.get(Post.class, postId);
@@ -237,12 +237,20 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<Void> removeUserTrace(String userId, String secret) {
-        return null;
+        if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
+            return Result.error(Result.ErrorCode.FORBIDDEN);
+        }
+        long offset = publishOperationToKafka(REMOVE_USER_TRACE, userId, secret);
+        Result<?> res = syncPoint.waitForResult(offset);
+        if (res.isOK()) {
+            return Result.ok();
+        }
+        return Result.error(res.error());
     }
 
     private long publishOperationToKafka(String operation, String... parameters) {
         String parametersString;
-        if (parameters.length > 1){
+        if (parameters.length > 1) {
             parametersString = StringUtils.join(parameters, "\t");
         } else {
             parametersString = parameters[0];
