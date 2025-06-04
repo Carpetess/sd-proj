@@ -121,6 +121,12 @@ public class Hibernate {
         return tx.session.get(clazz, identifier);
     }
 
+    public void update(TX tx, Object... objects) {
+        for(Object o : objects) {
+            tx.session.update(o);
+        }
+    }
+
     /**
      * Updates one or more objects previously persisted.
      * @param objects - the objects to update
