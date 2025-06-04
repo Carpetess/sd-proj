@@ -66,6 +66,7 @@ public class ImageJava extends JavaServer implements Image {
 
         Log.info("Created image " + imageUUID.toString() + " for user " + userId);
         URI image = URI.create("/image/" + userId + "/" + imageUUID.toString());
+        gracePeriod.put(userId + "/" +  imageUUID.toString(), System.currentTimeMillis());
         return Result.ok(image.toString());
     }
 
@@ -73,9 +74,25 @@ public class ImageJava extends JavaServer implements Image {
     public Result<byte[]> getImage(String userId, String imageId) {
         Log.info("Getting image " + imageId + " for user " + userId + "\n");
 
+        String userIdImageId = userId + "/" + imageId;
+        if(gracePeriod.containsKey(userIdImageId)){
+            Log.info("In grace period: "+ (System.currentTimeMillis()-gracePeriod.get(userIdImageId))+ "\n");
+            if(referenceCounter.containsKey(userIdImageId)){
+                Log.info("Also btw uhh ref: " + referenceCounter.get(userIdImageId).size() + "\n");
+            }
+
+        }
+        if(gracePeriod.containsKey(userIdImageId)&&System.currentTimeMillis()-gracePeriod.get(userIdImageId)>=TIMEOUT&&referenceCounter.containsKey(userIdImageId)&&referenceCounter.get(userIdImageId).isEmpty()) {
+            deleteImageHelper(userId,imageId);
+            referenceCounter.remove(userIdImageId);
+            gracePeriod.remove(userIdImageId);
+            Log.info("Deleted no get");
+            return Result.error(Result.ErrorCode.NOT_FOUND);
+        }
 
         Path imagePath = Paths.get(PATH, userId, imageId);
         File imageFile = imagePath.toFile();
+
 
         if (!imageFile.exists()) {
             Log.severe("Image not found for user " + userId + " and image id " + imageId + " in path " + imagePath.toString() + " or path does not exist.");
@@ -125,42 +142,42 @@ public class ImageJava extends JavaServer implements Image {
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
                 boolean addReference = Boolean.parseBoolean(r.key());
-                Log.info("Received message: " + r.value());
+                Log.info("Received message: " + r.value() + "with bool " + r.key() + "\n");
                 String[] parts = r.value().split(" ");
-                if (parts.length < 2) {
+                if (parts.length < 2 || parts.length > 3) {
                     Log.warning("Invalid message format: " + r.value());
                     return;
                 }
 
                 String postId = parts[0];
                 String userIdImageId = parts[1];
+                Log.info("postId: " + postId + " userIdImageId: " + userIdImageId+ "\n");
 
-                referenceCounter.compute(userIdImageId, (key, currentRefs) -> {
-                    if (addReference) {
-                        if (currentRefs == null) {
-                            currentRefs = new ConcurrentHashMap<>();
-                        }
-                        currentRefs.put(postId, true);
-                        gracePeriod.remove(key);
-                        return currentRefs;
-                    } else {
-                        if (currentRefs != null) {
-                            currentRefs.remove(postId);
-                            if (currentRefs.isEmpty()) {
-                                gracePeriod.putIfAbsent(key, System.currentTimeMillis());
-                                return currentRefs;
-                            }
-                            return currentRefs;
-                        }
-                        return null;
-                    }
-                });
+                if(!referenceCounter.containsKey(userIdImageId)) {
+                    referenceCounter.put(userIdImageId, new ConcurrentHashMap<>());
+                }
+
+                if(addReference) {
+                    Log.info("added reference for: " + userIdImageId + "\n");
+                    referenceCounter.get(userIdImageId).put(postId, true);
+                }else{
+                    Log.info("removed reference for: " + userIdImageId+ "\n");
+                    referenceCounter.get(userIdImageId).remove(postId);
+                }
+
 
                 Map<String, Boolean> refs = referenceCounter.get(userIdImageId);
                 Long graceStart = gracePeriod.get(userIdImageId);
 
-                if ((refs == null || refs.isEmpty()) &&
-                        (graceStart == null || System.currentTimeMillis() - graceStart >= TIMEOUT)) {
+                if(!addReference){
+                    Log.info("Maybe removing " + userIdImageId + " from reference counter: " + refs.size() + "\n");
+                }
+                if(graceStart == null){
+                    Log.info("Not in grace");
+                }else{
+                    Log.info("In grace during: " + ((System.currentTimeMillis() - graceStart))+ "\n");
+                }
+                if ((refs == null || refs.isEmpty()) && (graceStart == null || System.currentTimeMillis() - graceStart >= TIMEOUT)) {
                     referenceCounter.remove(userIdImageId);
                     gracePeriod.remove(userIdImageId);
                     String[] split = userIdImageId.split("/");

@@ -204,7 +204,7 @@ public class ContentJava extends JavaServer implements Content {
             if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
             for(Post deletedPost: toDelete){
-                changeReferenceOfImage(post, false);
+                changeReferenceOfImage(deletedPost, false);
             }
         } catch (Exception e) {
             Log.severe(e.toString());
