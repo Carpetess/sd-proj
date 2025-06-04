@@ -229,8 +229,6 @@ public interface RestContent {
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Integer getDownVotes(@PathParam(POSTID) String postId);
 
-	@DELETE
-	@Path("{" + USERID + "}")
 	/**
 	 * Sets the authorId of the posts owned by this user to null.
 	 * @param userId author of all the posts to be updated.
@@ -238,6 +236,9 @@ public interface RestContent {
 	 * @return NO_CONTENT if all the posts that user used to own were set to null, FORBIDDEN if the password didn't match,
 	 * NOT_FOUND if the author didn't exist.
 	 */
-	public void removeUserTraces(@PathParam(USERID) String userId, @QueryParam(PASSWORD) String secret);
+	@DELETE
+	@Path("{" + USERID + "}/removeTraces")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public void removeUserTraces(@PathParam(USERID) String userId, @QueryParam(SECRET) String secret);
 
 }

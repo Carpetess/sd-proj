@@ -101,7 +101,7 @@ public class ContentRestClient extends ContentClient implements Content {
 
     @Override
     public Result<Void> removeUserTrace(String userId, String secret) {
-       Invocation.Builder builder = target.path(userId).path("posts")
+       Invocation.Builder builder = target.path(userId).path("removeTraces")
                 .queryParam(RestContent.SECRET, secret).request();
 
         Response r = executeOperation(builder::delete);
