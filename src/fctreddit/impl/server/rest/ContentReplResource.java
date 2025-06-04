@@ -28,9 +28,9 @@ public class ContentReplResource implements RestContent {
 
     @Override
     public String createPost(Post post, String userPassword) {
-        Log.info("createPost by user: " + userPassword);
+        Log.info("createPost by user: " + post.getAuthorId());
         Result<String> res = impl.createPost(post, userPassword);
-
+        Log.info(res.toString());
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
         }

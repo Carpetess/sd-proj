@@ -4,6 +4,7 @@ import fctreddit.impl.server.Discovery;
 import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.JavaServer;
 import fctreddit.impl.server.java.UsersJava;
+import fctreddit.impl.server.rest.filter.VersionFilter;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
@@ -32,6 +33,7 @@ public class UsersServer {
         try {
             ResourceConfig config = new ResourceConfig();
             config.register(UserResource.class);
+            config.register(VersionFilter.class);
 
             SecretKeeper.getInstance().setSecret(args[args.length-1]);
             String hostName = InetAddress.getLocalHost().getHostName();

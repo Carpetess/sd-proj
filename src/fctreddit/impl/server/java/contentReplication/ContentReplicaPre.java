@@ -15,7 +15,9 @@ import fctreddit.impl.server.kafka.SyncPoint;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class ContentReplicaPre extends JavaServer implements Content {
@@ -23,6 +25,8 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     private static final Logger Log = Logger.getLogger(ContentReplicaPre.class.getName());
 
+
+    private static Map<String, Object> lockMap = ContentReplicaProcessor.getLockMap();
     private static KafkaPublisher kafkaPublisher;
     private static final Gson gson = new Gson();
 
@@ -36,7 +40,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<String> createPost(Post post, String userPassword) {
-
+        Log.info("Checking if request is valid");
         if (!isValid(post))
             return Result.error(Result.ErrorCode.BAD_REQUEST);
 
@@ -47,9 +51,11 @@ public class ContentReplicaPre extends JavaServer implements Content {
         post.setPostId(UUID.randomUUID().toString());
         post.setCreationTimestamp(System.currentTimeMillis());
 
+        Log.info("Replicating request to create post: " + post.getPostId() + " for user: " + post.getAuthorId());
         String postJson = gson.toJson(post);
         long offset = publishOperationToKafka(CREATE_POST, postJson, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
+        Log.info("Received this result: " + res);
         if (res.isOK()) {
             return Result.ok((String) res.value());
         }
@@ -103,7 +109,27 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
     @Override
     public Result<List<String>> getPostAnswers(String postId, long maxTimeout) {
-        return null;
+        List<Post> posts;
+        if (maxTimeout != 0) {
+            lockMap.putIfAbsent(postId, new Object());
+
+            Object lock = lockMap.get(postId);
+            synchronized (lock) {
+                try {
+                    lock.wait(maxTimeout);
+                } catch (InterruptedException e) {
+                    Log.severe(e.toString());
+                    return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+                }
+            }
+        }
+        try {
+            posts = hibernate.jpql("SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "' ORDER BY p.creationTimestamp", Post.class);
+        } catch (Exception e) {
+            Log.severe(e.toString());
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
+        return Result.ok(posts.stream().map(Post::getPostId).toList());
     }
 
     @Override
@@ -143,7 +169,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
         if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
-        long offset = publishOperationToKafka(UPVOTE_POST, postId, userPassword);
+        long offset = publishOperationToKafka(UPVOTE_POST, postId, userId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
         if (res.isOK()) {
             return Result.ok();
@@ -161,7 +187,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
         if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
-        long offset = publishOperationToKafka(REMOVE_UPVOTE_POST, postId, userPassword);
+        long offset = publishOperationToKafka(REMOVE_UPVOTE_POST, postId, userId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
         if (res.isOK()) {
             return Result.ok();
@@ -178,7 +204,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
         if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
-        long offset = publishOperationToKafka(DOWNVOTE_POST, postId, userPassword);
+        long offset = publishOperationToKafka(DOWNVOTE_POST, postId, userId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
         if (res.isOK()) {
             return Result.ok();
@@ -195,7 +221,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
         if (postId == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
-        long offset = publishOperationToKafka(REMOVE_DOWNVOTE_POST, postId, userPassword);
+        long offset = publishOperationToKafka(REMOVE_DOWNVOTE_POST, postId, userId, userPassword);
         Result<?> res = syncPoint.waitForResult(offset);
         if (res.isOK()) {
             return Result.ok();
@@ -251,14 +277,14 @@ public class ContentReplicaPre extends JavaServer implements Content {
     private long publishOperationToKafka(String operation, String... parameters) {
         String parametersString;
         if (parameters.length > 1) {
-            parametersString = StringUtils.join(parameters, "\t");
+            parametersString = StringUtils.join(parameters, ":::");
         } else {
             parametersString = parameters[0];
         }
         return kafkaPublisher.publish(SEND_OPERATION, operation, parametersString);
     }
 
-    private static void setKafkaPublisher(KafkaPublisher publisher) {
+    public static void setKafkaPublisher(KafkaPublisher publisher) {
         kafkaPublisher = publisher;
     }
 

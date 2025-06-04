@@ -417,9 +417,6 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         tx = hibernate.beginTransaction();
-        if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
-            return Result.error(Result.ErrorCode.FORBIDDEN);
-        }
         try {
             List<Vote> votes = hibernate.jpql(tx, "SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
             hibernate.deleteAll(votes);
