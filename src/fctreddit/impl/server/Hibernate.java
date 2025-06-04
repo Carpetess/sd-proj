@@ -144,6 +144,11 @@ public class Hibernate {
         }
     }
 
+    public void delete(TX tx, Object... objects) {
+        for(Object o : objects) {
+            tx.session.delete(o);
+        }
+    }
     /**
      * Removes one or more objects from storage
      * @param objects - the objects to remove from storage

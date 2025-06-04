@@ -25,11 +25,13 @@ public class ContentJava extends JavaServer implements Content {
     private static Map<String, Object> lockMap = new ConcurrentHashMap<>();
 
     private static final Logger Log = Logger.getLogger(ContentJava.class.getName());
-    private final static Hibernate hibernate = Hibernate.getInstance();
+    private Hibernate hibernate;
     private static KafkaPublisher publisher;
 
 
-    public ContentJava() {}
+    public ContentJava() {
+        hibernate = Hibernate.getInstance();
+    }
 
     @Override
     public Result<String> createPost(Post post, String userPassword) {
