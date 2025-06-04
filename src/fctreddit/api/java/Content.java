@@ -6,6 +6,23 @@ import fctreddit.api.data.Post;
 import fctreddit.api.java.util.Content.VoteType;
 
 public interface Content {
+	static final String CREATE_POST = "createPost";
+	static final String GET_POST = "getPost";
+	static final String GET_POSTS = "getPosts";
+	static final String GET_POST_ANSWERS= "getPostAnswers";
+	static final String UPDATE_POST = "updatePost";
+	static final String DELETE_POST = "deletePost";
+	static final String UPVOTE_POST = "upvotePost";
+	static final String DOWNVOTE_POST = "downvotePost";
+	static final String REMOVE_UPVOTE_POST = "removeUpvotePost";
+	static final String REMOVE_DOWNVOTE_POST = "removeDownvotePost";
+	static final String GET_UPVOTE = "getUpvote";
+	static final String GET_DOWNVOTE = "getDownvote";
+	static final String UPDATE_POST_OWNER = "updatePostOwner";
+	static final String REMOVE_ALL_USER_VOTES = "removeAllUserVotes";
+
+
+	static final String SEND_OPERATION = "send";
 
 	/**
 	 * The following constants are the values that can be sent for the query parameter SORTBY

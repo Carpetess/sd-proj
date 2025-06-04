@@ -142,7 +142,6 @@ public class ContentJava extends JavaServer implements Content {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        Log.info("::DDDDDDDDDDDDDD");
         return Result.ok(posts.stream().map(Post::getPostId).toList());
     }
 
