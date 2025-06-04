@@ -53,7 +53,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
 
         Log.info("Replicating request to create post: " + post.getPostId() + " for user: " + post.getAuthorId());
         String postJson = gson.toJson(post);
-        long offset = publishOperationToKafka(CREATE_POST, postJson, userPassword);
+        long offset = publishOperationToKafka(CREATE_POST, postJson);
         Result<?> res = syncPoint.waitForResult(offset);
         Log.info("Received this result: " + res);
         if (res.isOK()) {

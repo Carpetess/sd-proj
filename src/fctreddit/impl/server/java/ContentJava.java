@@ -162,7 +162,7 @@ public class ContentJava extends JavaServer implements Content {
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
 
             if (post.getMediaUrl() != null) {
-                if (oldPost.getMediaUrl() != null) {
+                if (oldPost.getMediaUrl() != null && !oldPost.getMediaUrl().equals(post.getMediaUrl())) {
                     changeReferenceOfImage(oldPost, false);
                 }
                 changeReferenceOfImage(post, true);
@@ -202,7 +202,8 @@ public class ContentJava extends JavaServer implements Content {
             if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
             for (Post deletedPost : toDelete) {
-                changeReferenceOfImage(deletedPost, false);
+                if (deletedPost.getMediaUrl() != null)
+                    changeReferenceOfImage(deletedPost, false);
             }
         } catch (Exception e) {
             Log.severe(e.toString());
@@ -248,6 +249,7 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.commitTransaction(tx);
             Log.info("Persisted vote");
         } catch (Exception e) {
+            Log.warning("Broken when upvoting " + userId + " from post " + postId + " " + e.getMessage() + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
         }
@@ -286,6 +288,7 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.delete(tx, i.iterator().next());
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
+            Log.warning("Broken when removing upvote " + userId + " from post " + postId + " " + e.getMessage() + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
@@ -320,6 +323,7 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.persist(tx, new Vote(userId, postId, false));
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
+            Log.warning("Broken when downvoting vote " + userId + " from post " + postId + " " + e.getMessage() + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.CONFLICT);
         }
@@ -358,6 +362,7 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.delete(tx, i.iterator().next());
             hibernate.commitTransaction(tx);
         } catch (Exception e) {
+            Log.warning("Broken when removing down vote " + userId + " from post " + postId + " " + e.getMessage() + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
@@ -373,7 +378,7 @@ public class ContentJava extends JavaServer implements Content {
             post = hibernate.get(Post.class, postId);
             upvotes = hibernate.sql("SELECT * from Vote pv WHERE pv.postId='" + postId + "' AND pv.upVote='true'", Vote.class).size();
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.warning("Broken when getting up votes for " + postId + ": " + e.getMessage() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         if (post == null)
@@ -390,7 +395,7 @@ public class ContentJava extends JavaServer implements Content {
             post = hibernate.get(Post.class, postId);
             downvotes = hibernate.sql("SELECT * from Vote pv WHERE pv.postId='" + postId + "' AND pv.upVote='false'", Vote.class).size();
         } catch (Exception e) {
-            Log.severe(e.toString());
+            Log.warning("Broken when getting down votes for " + postId + ": " + e.getMessage() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         if (post == null)
@@ -415,7 +420,7 @@ public class ContentJava extends JavaServer implements Content {
 			hibernate.commitTransaction(tx);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+            Log.warning("Broke, when removing user trace: " + e.getMessage() + "\n");
 			hibernate.abortTransaction(tx);
 			return Result.error(Result.ErrorCode.INTERNAL_ERROR);
 		}
