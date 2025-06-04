@@ -1,0 +1,57 @@
+SD2425 +++ TP2 +++ Testing image: sd2425-tp2-api-65371-65545:latest
+version 16 31/05/2025-221541
+WARNING: sun.reflect.Reflection.getCallerClass is not supported. This will impact performance.
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+1a )	 Testing Docker environment [executing: docker info]
+---------------------------------------------------------------
+Docker ID: 230591f1-e2a9-489c-bd51-81f3705cd3f0
+OK                                                                                                                   
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+1b )	Testing: Docker engine CPU cores...
+---------------------------------------------------------------
+Java runtime advertised cores: 20
+OK                                                                                                                   
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+1c )	Checking /home/sd/fctreddit.props [executing: docker run sd2425-tp2-api-65371-65545:latest /bin/cat /home/sd/fctreddit.props]
+---------------------------------------------------------------
+; Read properties from: /home/sd/fctreddit.props
+;	CLIENT_TRUSTSTORE=truststore.ks,changeit
+;	CONTENT_GRPC_EXTRA_ARGS=boas
+;	CONTENT_GRPC_PORT=8081
+;	CONTENT_GRPC_SERVER_MAINCLASS=fctreddit.impl.server.grpc.ContentServer
+;	CONTENT_KEYSTORES=content1,content1-server.ks,123456 content2,content2-server.ks,123456 content3,content3-server.ks,123456
+;	CONTENT_REP_EXTRA_ARGS_FIRST=boas
+;	CONTENT_REP_EXTRA_ARGS_OTHER=boas
+;	CONTENT_REP_PORT=8080
+;	CONTENT_REP_SERVER_MAINCLASS=fctreddit.impl.server.rest.ContentReplServer
+;	CONTENT_REST_EXTRA_ARGS=boas
+;	CONTENT_REST_PORT=8080
+;	CONTENT_REST_SERVER_MAINCLASS=fctreddit.impl.server.rest.ContentServer
+;	DISCOVERY_MULTICAST_IP=226.226.226.226
+;	DISCOVERY_MULTICAST_PORT=2266
+;	IMAGE_GRPC_EXTRA_ARGS=boas
+;	IMAGE_GRPC_PORT=8081
+;	IMAGE_GRPC_SERVER_MAINCLASS=fctreddit.impl.server.grpc.ImageServer
+;	IMAGE_KEYSTORES=image1,image1-server.ks,123456 image2,image2-server.ks,123456
+;	IMAGE_PROXY_EXTRA_ARGS=boas
+;	IMAGE_PROXY_MAINCLASS=fctreddit.impl.server.rest.ImageProxyServer
+;	IMAGE_PROXY_PORT=8080
+;	IMAGE_PROXY_PROTO=rest
+;	IMAGE_REST_EXTRA_ARGS=boas
+;	IMAGE_REST_PORT=8080
+;	IMAGE_REST_SERVER_MAINCLASS=fctreddit.impl.server.rest.ImageServer
+;	USERS_GRPC_EXTRA_ARGS=boas
+;	USERS_GRPC_PORT=8081
+;	USERS_GRPC_SERVER_MAINCLASS=fctreddit.impl.server.grpc.UsersServer
+;	USERS_KEYSTORES=users,users-server.ks,123456
+;	USERS_REST_EXTRA_ARGS=boas
+;	USERS_REST_PORT=8080
+;	USERS_REST_SERVER_MAINCLASS=fctreddit.impl.server.rest.UsersServer
+Client truststore: filename: truststore.ks, password: changeit
+OK                                                                                                                   
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2a )	 Testing Discovery Service [ listening for announcements... ] REST 
+---------------------------------------------------------------
+Starting: kafka...
+sleeping: 9 s                                                                                sleeping: 8 s                                                                                sleeping: 7 s                                                                                sleeping: 6 s                                                                                sleeping: 5 s                                                                                sleeping: 4 s                                                                                sleeping: 3 s                                                                                sleeping: 2 s                                                                                sleeping: 1 s                                                                                sleeping: 0 s                                                                                                                                                                Starting: Users : [1] REST Servers, [0] GRPC Servers [0] Proxy, TLS = true
+sleeping: 4 s                                                                                sleeping: 3 s                                                                                sleeping: 2 s                                                                                ^C

@@ -155,6 +155,10 @@ public class Hibernate {
         }
     }
 
+    public void deleteAll(TX tx, List<?> objects) {
+        for (Object o : objects)
+            tx.session.delete(o);
+    }
     public void deleteAll(List<?> objects) {
         Transaction tx = null;
         try(var session = sessionFactory.openSession()) {

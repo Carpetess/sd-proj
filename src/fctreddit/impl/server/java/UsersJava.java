@@ -26,18 +26,22 @@ public class UsersJava extends JavaServer implements Users {
 
     @Override
     public Result<String> createUser(User user) {
-        Hibernate hibernate = Hibernate.getInstance();
+        Hibernate.TX tx = hibernate.beginTransaction();
         try {
             if (user == null || !user.canBuild()) {
+                hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
             }
-            if (hibernate.get(User.class, user.getUserId()) != null) {
+            if (hibernate.get(tx, User.class, user.getUserId()) != null) {
+                hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.CONFLICT);
             }
-            hibernate.persist(user);
+            hibernate.persist(tx, user);
+            hibernate.commitTransaction(tx);
         } catch (Exception e) {
             e.printStackTrace();
             Log.severe("Exception persisting user " + user.getUserId());
+            hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(user.getUserId());
@@ -61,7 +65,7 @@ public class UsersJava extends JavaServer implements Users {
             Log.info("User " + userId + " not found");
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
-        if ( password == null || !password.equals(user.getPassword())) {
+        if (password == null || !password.equals(user.getPassword())) {
             Log.info("Passwords don't match for user " + userId);
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
@@ -73,21 +77,29 @@ public class UsersJava extends JavaServer implements Users {
         if (userId == null || password == null)
             return Result.error(Result.ErrorCode.BAD_REQUEST);
 
+        Hibernate.TX tx = hibernate.beginTransaction();
         User oldUser;
         try {
-            oldUser= hibernate.get(User.class, userId);
-            if (oldUser == null)
+            oldUser = hibernate.get(tx, User.class, userId);
+            if (oldUser == null){
+                hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.NOT_FOUND);
-            if (!password.equals(oldUser.getPassword()))
+            }
+            if (!password.equals(oldUser.getPassword())){
+                hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.FORBIDDEN);
+            }
             if (!oldUser.canUpdateUser(user)) {
+                hibernate.abortTransaction(tx);
                 Log.severe("User " + userId + " could not be updated");
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
             }
             oldUser.updateUser(user);
-            hibernate.update(oldUser);
+            hibernate.update(tx, oldUser);
+            hibernate.commitTransaction(tx);
         } catch (Exception e) {
             Log.severe(e.toString());
+            hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(oldUser);
@@ -95,30 +107,36 @@ public class UsersJava extends JavaServer implements Users {
 
     @Override
     public Result<User> deleteUser(String userId, String password) {
-            Content contentClient = getContentClient();
-            Image imageClient = getImageClient();
+
+        Content contentClient = getContentClient();
+        Image imageClient = getImageClient();
         if (userId == null || password == null) {
             return Result.error(Result.ErrorCode.BAD_REQUEST);
         }
 
+        Hibernate.TX tx = hibernate.beginTransaction();
         User user;
         try {
-            user = hibernate.get(User.class, userId);
+            user = hibernate.get(tx, User.class, userId);
             if (user == null) {
+                hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             }
             if (!password.equals(user.getPassword())) {
+                hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             }
             contentClient.removeUserTrace(userId, SecretKeeper.getInstance().getSecret());
             if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
-                imageClient.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
+                imageClient.deleteImage(userId, parseUrl(user.getAvatarUrl()), password);
             }
 
-            hibernate.delete(user);
+            hibernate.delete(tx, user);
+            hibernate.commitTransaction(tx);
         } catch (Exception e) {
             e.printStackTrace();
             Log.severe("Exception deleting user " + userId);
+            hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         return Result.ok(user);
