@@ -146,20 +146,11 @@ public class ContentReplResource implements RestContent {
     }
 
     @Override
-    public Void updatePostOwner(String userId, String password, String secret) {
-        Result<Void> res = impl.updatePostOwner(userId, password, secret);
+    public void removeUserTraces(String userId, String secret) {
+        Result<Void> res = impl.removeUserTrace(userId, secret);
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
         }
-        return null;
     }
 
-    @Override
-    public Void removeAllUserVotes(String userId, String password, String secret) {
-        Result<Void> res = impl.removeAllUserVotes(userId, password, secret);
-        if(!res.isOK()){
-            throw new WebApplicationException(errorCodeToStatus(res.error()));
-        }
-        return null;
-    }
 }

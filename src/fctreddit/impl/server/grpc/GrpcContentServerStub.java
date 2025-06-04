@@ -131,23 +131,12 @@ public class GrpcContentServerStub implements ContentGrpc.AsyncService, Bindable
         responseObserver.onCompleted();
     }
 
-    @Override
-    public void removeAllUserVotes(ContentProtoBuf.RemoveAllUserVoteArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.removeAllUserVotes(request.getUserId(), request.getPassword(),SecretKeeper.getInstance().getSecret());
+    public void removeUserTrace(ContentProtoBuf.RemoveUserTraceArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
+        Result<Void> res = impl.removeUserTrace(request.getUserId(), request.hasSecret() ? request.getSecret() : null);
         if(!res.isOK())
             responseObserver.onError(errorCodeToThrowable(res.error()));
         responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
         responseObserver.onCompleted();
-    }
-
-    @Override
-    public void updatePostOwner(ContentProtoBuf.UpdatePostOwnerArgs request, StreamObserver<ContentProtoBuf.EmptyMessage> responseObserver) {
-        Result<Void> res = impl.updatePostOwner(request.getUserId(), request.getPassword(), SecretKeeper.getInstance().getSecret());
-        if(!res.isOK())
-            responseObserver.onError(errorCodeToThrowable(res.error()));
-        responseObserver.onNext(ContentProtoBuf.EmptyMessage.newBuilder().build());
-        responseObserver.onCompleted();
-
     }
 
 }

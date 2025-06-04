@@ -196,17 +196,12 @@ public interface Content {
 	public Result<Integer> getDownVotes(String postId);
 
 	/**
-	 * Sets all authorIds of all the posts of a given user to null.
-	 * @param userId target user of the operation.
-	 */
-	public Result<Void> updatePostOwner(String userId, String password, String secret);
-
-	/**
-	 * Removes all the votes, up or down, that a user has made across all the posts2
+	 * Removes all interactions and anything related to the name of the user in the program
 	 * @param userId
-	 * @param postIds
+	 * @param secret
 	 * @return
 	 */
-	public Result<Void> removeAllUserVotes(String userId, String password, String secret);
+	public Result<Void> removeUserTrace(String userId, String secret);
+
 
 }

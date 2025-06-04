@@ -140,26 +140,14 @@ public class ContentResource  extends ErrorParser implements RestContent {
         return res.value();
     }
 
-    @Override
-    public Void removeAllUserVotes(String userId, String password, String secret) {
-
-       Log.info("Removed all user votes by user: " + userId);
-       Result<Void> res = impl.removeAllUserVotes(userId, password,secret);
-       if(!res.isOK()){
-           throw new WebApplicationException(errorCodeToStatus(res.error()));
-       }
-       return res.value();
-    }
 
     @Override
-    public Void updatePostOwner(String authorId, String password, String secret) {
-
-        Log.info("updatePostOwner by user: " + authorId);
-        Result<Void> res = impl.updatePostOwner(authorId, password,secret);
+    public void removeUserTraces(String userId, String secret) {
+        Log.info("updatePostOwner by user: " + userId);
+        Result<Void> res = impl.removeUserTrace(userId,secret);
         if(!res.isOK()){
             throw new WebApplicationException(errorCodeToStatus(res.error()));
         }
-        return res.value();
     }
 
 }

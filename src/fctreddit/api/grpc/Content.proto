@@ -29,9 +29,7 @@ service Content {
 	
 	rpc getDownVotes ( GetPostArgs ) returns ( VoteCountResult ) {}
 
-	rpc removeAllUserVotes ( RemoveAllUserVoteArgs ) returns ( EmptyMessage ) {}
-
-	rpc updatePostOwner ( UpdatePostOwnerArgs ) returns ( EmptyMessage ) {}
+	rpc removeUserTrace ( RemoveUserTraceArgs ) returns ( EmptyMessage ) {}
 }
 
 message GrpcPost {
@@ -43,6 +41,11 @@ message GrpcPost {
 	optional string parentUrl = 6;
 	optional int32 upVote = 7;
 	optional int32 downVote = 8;
+}
+
+message RemoveUserTraceArgs {
+	optional string userId = 1;
+	optional string secret = 2;
 }
 
 message CreatePostArgs {

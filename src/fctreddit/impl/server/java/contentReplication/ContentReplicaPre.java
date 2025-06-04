@@ -8,6 +8,7 @@ import fctreddit.api.java.Content;
 import fctreddit.api.java.Result;
 import fctreddit.api.java.Users;
 import fctreddit.impl.server.Hibernate;
+import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.java.JavaServer;
 import fctreddit.impl.server.kafka.KafkaPublisher;
 import fctreddit.impl.server.kafka.SyncPoint;
@@ -235,12 +236,7 @@ public class ContentReplicaPre extends JavaServer implements Content {
     }
 
     @Override
-    public Result<Void> updatePostOwner(String userId, String password, String secret) {
-        return null;
-    }
-
-    @Override
-    public Result<Void> removeAllUserVotes(String userId, String password, String secret) {
+    public Result<Void> removeUserTrace(String userId, String secret) {
         return null;
     }
 

@@ -230,25 +230,12 @@ public interface RestContent {
 	public Integer getDownVotes(@PathParam(POSTID) String postId);
 
 	/**
-	 * Removes all votes a user has ever made
-	 * @param userId userId of the target user.
-	 * @param password password of the target user.
-	 * @return NO_CONTENT if all the votes were removed, FORBIDDEN if the password is wrong,
-	 * NOT_FOUND if the user doesn't exist.
-	 */
-	@DELETE
-	@Path("{" + USERID + "}/votes")
-	public Void removeAllUserVotes(@PathParam(USERID) String userId, @QueryParam(PASSWORD) String password, @QueryParam(SECRET) String secret);
-
-	/**
 	 * Sets the authorId of the posts owned by this user to null.
-	 * @param authorID author of all the posts to be updated.
-	 * @param password password of the target user.
+	 * @param userId author of all the posts to be updated.
+	 * @param secret auth between servers
 	 * @return NO_CONTENT if all the posts that user used to own were set to null, FORBIDDEN if the password didn't match,
 	 * NOT_FOUND if the author didn't exist.
 	 */
-	@DELETE
-	@Path("{" + USERID + "}/posts" )
-	public Void updatePostOwner(@PathParam(USERID) String authorID, @QueryParam(PASSWORD) String password,@QueryParam(SECRET) String secret);
+	public void removeUserTraces(@PathParam(USERID) String userId, @QueryParam(PASSWORD) String secret);
 
 }

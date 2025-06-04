@@ -69,12 +69,8 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
     }
 
     @Override
-    public Result<Void> updatePostOwner(String userId, String password, String secret) {
+    public Result<Void> removeUserTrace(String userId, String secret) {
         return null;
     }
 
-    @Override
-    public Result<Void> removeAllUserVotes(String userId, String password, String secret) {
-        return null;
-    }
 }

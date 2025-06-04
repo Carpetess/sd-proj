@@ -40,21 +40,6 @@ public class ContentRestClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
-        Invocation.Builder builder = target.path( userId ).path( "votes")
-                .queryParam(RestContent.PASSWORD, password)
-                .queryParam(RestContent.SECRET,secret).request();
-
-        Response r = executeOperation(builder::delete);
-        int status = r.getStatus();
-        if (status == Response.Status.OK.getStatusCode()) {
-            return Result.ok();
-        } else {
-            return Result.error(getErrorCodeFrom(status));
-        }
-    }
-
-    @Override
     public Result<String> createPost(Post post, String userPassword) {
         return null;
     }
@@ -115,9 +100,8 @@ public class ContentRestClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> updatePostOwner(String authorId, String password,String secret) {
-        Invocation.Builder builder = target.path(authorId).path("posts")
-                .queryParam(RestContent.PASSWORD, password)
+    public Result<Void> removeUserTrace(String userId, String secret) {
+       Invocation.Builder builder = target.path(userId).path("posts")
                 .queryParam(RestContent.SECRET, secret).request();
 
         Response r = executeOperation(builder::delete);
@@ -129,5 +113,6 @@ public class ContentRestClient extends ContentClient implements Content {
             return Result.error(getErrorCodeFrom(status));
         }
     }
+
 
 }

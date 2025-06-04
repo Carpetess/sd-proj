@@ -110,8 +110,7 @@ public class UsersJava extends JavaServer implements Users {
             if (!password.equals(user.getPassword())) {
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             }
-            contentClient.removeAllUserVotes(userId, password, SecretKeeper.getInstance().getSecret());
-            contentClient.updatePostOwner(userId, password, SecretKeeper.getInstance().getSecret());
+            contentClient.removeUserTrace(userId, SecretKeeper.getInstance().getSecret());
             if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
                 imageClient.deleteImage(userId, parseUrl(user.getAvatarUrl()) , password);
             }

@@ -62,17 +62,6 @@ public class ContentGrpcClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
-        try {
-            stub.removeAllUserVotes(ContentProtoBuf.RemoveAllUserVoteArgs.newBuilder()
-                    .setUserId(userId).setPassword(password).setSecret(secret).build());
-            return Result.ok();
-        } catch (StatusRuntimeException sre) {
-            return Result.error(statusToErrorCode(sre.getStatus()));
-        }
-    }
-
-    @Override
     public Result<String> createPost(Post post, String userPassword) {
         return null;
     }
@@ -133,14 +122,15 @@ public class ContentGrpcClient extends ContentClient implements Content {
     }
 
     @Override
-    public Result<Void> updatePostOwner(String authorId, String password,String secret) {
-        try {
-            stub.updatePostOwner(ContentProtoBuf.UpdatePostOwnerArgs.newBuilder()
-                    .setUserId(authorId).setPassword(password).setSecret(secret).build());
+    public Result<Void> removeUserTrace(String userId, String secret) {
+       try {
+            stub.removeUserTrace(ContentProtoBuf.RemoveUserTraceArgs.newBuilder()
+                    .setUserId(userId).setSecret(secret).build());
             return Result.ok();
         } catch (StatusRuntimeException sre) {
             return Result.error(statusToErrorCode(sre.getStatus()));
         }
     }
+
 }
 

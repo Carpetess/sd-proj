@@ -64,7 +64,7 @@ public class ContentJava extends JavaServer implements Content {
             }
             hibernate.commitTransaction(tx);
 
-            if(post.getMediaUrl() != null)
+            if (post.getMediaUrl() != null)
                 changeReferenceOfImage(post, true);
 
         } catch (Exception e) {
@@ -85,12 +85,11 @@ public class ContentJava extends JavaServer implements Content {
         List<String> posts;
         try {
             switch (sortOrder) {
-                case MOST_UP_VOTES ->
-                        posts = hibernate.sql("SELECT postId FROM (SELECT p.postId as postId, "
-						+ "(SELECT COUNT(*) FROM Vote pv where p.postId = pv.postId AND pv.upVote='true') as upVotes "
-						+ "from Post p WHERE "
-						+ (timestamp > 0 ? "p.creationTimestamp >= '" + timestamp + "' AND " : "")
-						+ "p.parentURL IS NULL) ORDER BY upVotes DESC, postID ASC", String.class);
+                case MOST_UP_VOTES -> posts = hibernate.sql("SELECT postId FROM (SELECT p.postId as postId, "
+                        + "(SELECT COUNT(*) FROM Vote pv where p.postId = pv.postId AND pv.upVote='true') as upVotes "
+                        + "from Post p WHERE "
+                        + (timestamp > 0 ? "p.creationTimestamp >= '" + timestamp + "' AND " : "")
+                        + "p.parentURL IS NULL) ORDER BY upVotes DESC, postID ASC", String.class);
                 case MOST_REPLIES -> {
                     posts = hibernate.jpql("SELECT p.postId FROM Post p WHERE p.creationTimestamp >= " + timestamp + " AND p.parentUrl IS NULL ORDER BY " + commentCountQuery + " DESC,  p.postId ASC", String.class);
                 }
@@ -107,17 +106,17 @@ public class ContentJava extends JavaServer implements Content {
 
     @Override
     public Result<Post> getPost(String postId) {
-	Post p = hibernate.get(Post.class, postId);
-		Result<Integer> res = this.getupVotes(postId);
-		if (res.isOK())
-			p.setUpVote(res.value());
-		res = this.getDownVotes(postId);
-		if (res.isOK())
-			p.setDownVote(res.value());
-		if (p != null)
-			return Result.ok(p);
-		else
-			return Result.error(Result.ErrorCode.NOT_FOUND);
+        Post p = hibernate.get(Post.class, postId);
+        Result<Integer> res = this.getupVotes(postId);
+        if (res.isOK())
+            p.setUpVote(res.value());
+        res = this.getDownVotes(postId);
+        if (res.isOK())
+            p.setDownVote(res.value());
+        if (p != null)
+            return Result.ok(p);
+        else
+            return Result.error(Result.ErrorCode.NOT_FOUND);
     }
 
     @Override
@@ -202,7 +201,7 @@ public class ContentJava extends JavaServer implements Content {
             hibernate.deleteAll(toDelete);
             if (post.getMediaUrl() != null)
                 imageClient.deleteImage(post.getAuthorId(), parseUrl(post.getMediaUrl()), userPassword);
-            for(Post deletedPost: toDelete){
+            for (Post deletedPost : toDelete) {
                 changeReferenceOfImage(deletedPost, false);
             }
         } catch (Exception e) {
@@ -399,39 +398,28 @@ public class ContentJava extends JavaServer implements Content {
         return Result.ok(downvotes);
     }
 
-
     @Override
-    public Result<Void> updatePostOwner(String userId, String password,String secret) {
-        if(!secret.equals(SecretKeeper.getInstance().getSecret())){
+    public Result<Void> removeUserTrace(String userId, String secret) {
+        if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
         Log.info("Updating owner for user " + userId + "'s posts");
-        Result<User> res = getUser(userId, password);
-        if (!res.isOK())
-            return Result.error(res.error());
+        Hibernate.TX tx = hibernate.beginTransaction();
         try {
-            List<Post> posts = hibernate.jpql("SELECT p FROM Post p WHERE p.authorId LIKE '" + userId + "'", Post.class);
+            List<Post> posts = hibernate.jpql(tx, "SELECT p FROM Post p WHERE p.authorId LIKE '" + userId + "'", Post.class);
             for (Post post : posts) {
                 post.setAuthorId(null);
             }
-            hibernate.updateAll(posts);
+            hibernate.updateAll(tx, posts);
+            hibernate.commitTransaction(tx);
         } catch (Exception e) {
             Log.severe(e.toString());
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-        return Result.ok();
-    }
-
-    @Override
-    public Result<Void> removeAllUserVotes(String userId, String password,String secret) {
-        Hibernate.TX tx = hibernate.beginTransaction();
-        if(!secret.equals(SecretKeeper.getInstance().getSecret())){
+        tx = hibernate.beginTransaction();
+        if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
-        Log.info("Removing all votes for user " + userId);
-        Result<User> res = getUser(userId, password);
-        if (!res.isOK())
-            return Result.error(res.error());
         try {
             List<Vote> votes = hibernate.jpql(tx, "SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
             hibernate.deleteAll(votes);
@@ -443,6 +431,7 @@ public class ContentJava extends JavaServer implements Content {
         }
         return Result.ok();
     }
+
 
     private Result<User> getUser(String userId, String password) {
         Users userClient = getUsersClient();
@@ -471,6 +460,7 @@ public class ContentJava extends JavaServer implements Content {
     private static void startSubscriber(KafkaSubscriber subscriber) {
         subscriber.start(new RecordProcessor() {
             Hibernate hibernate = Hibernate.getInstance();
+
             @Override
             public void onReceive(ConsumerRecord<String, String> r) {
                 Hibernate.TX tx = hibernate.beginTransaction();
@@ -485,25 +475,25 @@ public class ContentJava extends JavaServer implements Content {
         });
     }
 
-   public static void setPublisher(KafkaPublisher publisher) {
+    public static void setPublisher(KafkaPublisher publisher) {
         ContentJava.publisher = publisher;
-   }
+    }
 
-   public static void setSubscriber(KafkaSubscriber subscriber) {
+    public static void setSubscriber(KafkaSubscriber subscriber) {
         ContentJava.subscriber = subscriber;
         startSubscriber(subscriber);
-   }
+    }
 
-   private void changeReferenceOfImage(Post post, boolean add){
+    private void changeReferenceOfImage(Post post, boolean add) {
         String[] slice = post.getMediaUrl().split("/");
         String imageId = slice[slice.length - 1];
         String userId = slice[slice.length - 2];
         String message = post.getPostId() + " " + userId + "/" + imageId;
-        if (add){
+        if (add) {
             publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "true", message);
-        } else{
+        } else {
             publisher.publish(Image.IMAGE_REFERENCE_COUNTER_TOPIC, "false", message);
         }
-   }
+    }
 
 }
