@@ -26,7 +26,6 @@ public class ContentJava extends JavaServer implements Content {
 
     private static final Logger Log = Logger.getLogger(ContentJava.class.getName());
     private Hibernate hibernate;
-    private static KafkaSubscriber subscriber;
     private static KafkaPublisher publisher;
 
 
@@ -475,7 +474,6 @@ public class ContentJava extends JavaServer implements Content {
     }
 
     public static void setSubscriber(KafkaSubscriber subscriber) {
-        ContentJava.subscriber = subscriber;
         startSubscriber(subscriber);
     }
 

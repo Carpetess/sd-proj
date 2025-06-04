@@ -30,8 +30,6 @@ public class ImageJava extends JavaServer implements Image {
     private static Map<String, Long> gracePeriod = new ConcurrentHashMap<>();
 
     private static KafkaPublisher kafkaPublisher;
-    private static KafkaSubscriber kafkaSubscriber;
-
     public ImageJava() {
     }
 
@@ -214,8 +212,7 @@ public class ImageJava extends JavaServer implements Image {
     }
 
     public static void setSubscriber(KafkaSubscriber subscriber) {
-        kafkaSubscriber = subscriber;
-        startSubscriber(kafkaSubscriber);
+        startSubscriber(subscriber);
         gracePeriodCleanup();
     }
 
