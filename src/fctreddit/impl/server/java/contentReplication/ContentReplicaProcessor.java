@@ -83,7 +83,7 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
 
     @Override
     public Result<Post> updatePost(String postId, String userPassword, Post post) {
-       Post oldPost = null;
+        Post oldPost = null;
         try {
             oldPost = hibernate.get(Post.class, postId);
 
@@ -121,7 +121,7 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
 
     @Override
     public Result<Void> deletePost(String postId, String userPassword) {
-         try {
+        try {
             Users userClient = getUsersClient();
             Image imageClient = getImageClient();
             Post post = hibernate.get(Post.class, postId);
@@ -237,28 +237,22 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
     @Override
     public Result<Void> removeDownVotePost(String postId, String userId, String userPassword) {
 
-        Hibernate.TX tx = hibernate.beginTransaction();
-
-        List<Vote> i = hibernate.sql(tx, "SELECT * from Vote pv WHERE pv.userId='" + userId
-                + "' AND pv.postId='" + postId + "' AND pv.upVote='false'", Vote.class);
-        if (i.isEmpty()) {
-            hibernate.abortTransaction(tx);
-            return Result.error(Result.ErrorCode.NOT_FOUND);
-        }
-        Post p = hibernate.get(tx, Post.class, postId);
-        if (p == null) {
-            hibernate.abortTransaction(tx);
-            return Result.error(Result.ErrorCode.NOT_FOUND);
-        }
-
+        Log.info("Executing a removeTracesOfUser on " + userId);
+        Hibernate.TX tx = null;
         try {
-            hibernate.delete(tx, i.iterator().next());
+            tx = hibernate.beginTransaction();
+
+            hibernate.sql(tx, "DELETE from Vote v where v.userId='" + userId + "'");
+
+            hibernate.sql(tx, "UPDATE Post p SET p.authorId=NULL where p.authorId='" + userId + "'");
+
             hibernate.commitTransaction(tx);
+
         } catch (Exception e) {
+            e.printStackTrace();
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
-
         return Result.ok();
     }
 
@@ -277,28 +271,21 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
         if (!secret.equals(SecretKeeper.getInstance().getSecret())) {
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
-        Log.info("Updating owner for user " + userId + "'s posts");
-        Hibernate.TX tx = hibernate.beginTransaction();
+        Log.info("Executing a removeTracesOfUser on " + userId);
+        Hibernate.TX tx = null;
         try {
-            List<Post> posts = hibernate.jpql(tx, "SELECT p FROM Post p WHERE p.authorId LIKE '" + userId + "'", Post.class);
-            for (Post post : posts) {
-                post.setAuthorId(null);
-            }
-            hibernate.updateAll(tx, posts);
+            tx = hibernate.beginTransaction();
+
+            hibernate.sql(tx, "DELETE from Vote v where v.voterId='" + userId + "'");
+
+            hibernate.sql(tx, "UPDATE Post p SET p.authorId=NULL where p.authorId='" + userId + "'");
+
             hibernate.commitTransaction(tx);
+
         } catch (Exception e) {
-            Log.severe(e.toString());
+            e.printStackTrace();
+            hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        }
-        tx = hibernate.beginTransaction();
-        try {
-            List<Vote> votes = hibernate.jpql(tx, "SELECT v FROM Vote v WHERE v.voterId LIKE '" + userId + "'", Vote.class);
-            hibernate.deleteAll(votes);
-        } catch (Exception e) {
-            Log.severe(e.toString());
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-        } finally {
-            hibernate.commitTransaction(tx);
         }
         return Result.ok();
     }
@@ -362,8 +349,8 @@ public class ContentReplicaProcessor extends JavaServer implements Content {
         });
     }
 
-    public static Map<String, Object> getLockMap(){
+    public static Map<String, Object> getLockMap() {
         return lockMap;
     }
 
-    }
+}

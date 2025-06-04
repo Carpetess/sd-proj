@@ -229,6 +229,8 @@ public interface RestContent {
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Integer getDownVotes(@PathParam(POSTID) String postId);
 
+	@DELETE
+	@Path("{" + USERID + "}")
 	/**
 	 * Sets the authorId of the posts owned by this user to null.
 	 * @param userId author of all the posts to be updated.
