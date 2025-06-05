@@ -169,7 +169,9 @@ public class UsersJava extends JavaServer implements Users {
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             }
             contentClient.removeUserTrace(userId, SecretKeeper.getInstance().getSecret());
-            changeReferenceOfImage(user,false);
+            if(user.getAvatarUrl()!=null) {
+                changeReferenceOfImage(user, false);
+            }
             if (user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()) {
                 imageClient.deleteImage(userId, parseUrl(user.getAvatarUrl()), password);
             }
