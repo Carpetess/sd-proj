@@ -11,11 +11,13 @@ import fctreddit.impl.server.Hibernate;
 import fctreddit.impl.server.SecretKeeper;
 import fctreddit.impl.server.kafka.KafkaPublisher;
 import fctreddit.impl.server.kafka.KafkaSubscriber;
-import fctreddit.impl.server.kafka.KafkaUtils;
 import fctreddit.impl.server.kafka.RecordProcessor;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -47,7 +49,7 @@ public class ContentJava extends JavaServer implements Content {
         try {
             if (post.getParentUrl() != null && !post.getParentUrl().isBlank()) {
                 String parentId = parseUrl(post.getParentUrl());
-                if (hibernate.get(tx, Post.class, parentId) == null){
+                if (hibernate.get(tx, Post.class, parentId) == null) {
                     hibernate.abortTransaction(tx);
                     return Result.error(Result.ErrorCode.NOT_FOUND);
                 }
@@ -100,7 +102,7 @@ public class ContentJava extends JavaServer implements Content {
             }
         } catch (Exception e) {
             Log.severe(e.toString());
-            Log.warning("Broken when getting posts: "  + e.getMessage() + "\n");
+            Log.warning("Broken when getting posts: " + e.getMessage() + "\n");
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
         Log.info("Found " + posts.size() + " posts");
@@ -118,7 +120,7 @@ public class ContentJava extends JavaServer implements Content {
             p.setDownVote(res.value());
         if (p != null)
             return Result.ok(p);
-        else{
+        else {
             return Result.error(Result.ErrorCode.NOT_FOUND);
         }
     }
@@ -164,7 +166,7 @@ public class ContentJava extends JavaServer implements Content {
             List<Vote> votes = hibernate.jpql(tx, "SELECT v FROM Vote v WHERE v.postId LIKE '" + postId + "'", Vote.class);
             List<Post> comments = hibernate.jpql(tx, "SELECT p FROM Post p WHERE p.parentUrl LIKE '%" + postId + "'", Post.class);
 
-            if (!comments.isEmpty() || !votes.isEmpty()){
+            if (!comments.isEmpty() || !votes.isEmpty()) {
                 hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.BAD_REQUEST);
             }
@@ -172,7 +174,7 @@ public class ContentJava extends JavaServer implements Content {
             if (post.getMediaUrl() != null) {
                 if (oldPost.getMediaUrl() != null && !oldPost.getMediaUrl().equals(post.getMediaUrl())) {
                     changeReferenceOfImage(oldPost, false);
-                    if(!oldPost.getMediaUrl().equals(post.getMediaUrl()))
+                    if (!oldPost.getMediaUrl().equals(post.getMediaUrl()))
                         changeReferenceOfImage(post, true);
                 }
 
@@ -180,7 +182,7 @@ public class ContentJava extends JavaServer implements Content {
 
             update(post, oldPost);
             Result<User> res = getUser(oldPost.getAuthorId(), userPassword);
-            if (!res.isOK()){
+            if (!res.isOK()) {
                 hibernate.abortTransaction(tx);
                 return Result.error(res.error());
             }
@@ -203,13 +205,13 @@ public class ContentJava extends JavaServer implements Content {
             Image imageClient = getImageClient();
             Post post = hibernate.get(tx, Post.class, postId);
 
-            if (post == null){
+            if (post == null) {
                 hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.NOT_FOUND);
             }
 
             Result<User> userRes = userClient.getUser(post.getAuthorId(), userPassword);
-            if (!userRes.isOK()){
+            if (!userRes.isOK()) {
                 hibernate.abortTransaction(tx);
                 return Result.error(Result.ErrorCode.FORBIDDEN);
             }
@@ -226,7 +228,7 @@ public class ContentJava extends JavaServer implements Content {
                 lockMap.remove(deletedPost.getPostId());
             }
         } catch (Exception e) {
-            Log.warning("Broken when deleting post" + postId  + " " + e.getMessage() + "\n");
+            Log.warning("Broken when deleting post" + postId + " " + e.getMessage() + "\n");
             hibernate.abortTransaction(tx);
             return Result.error(Result.ErrorCode.INTERNAL_ERROR);
         }
@@ -428,20 +430,20 @@ public class ContentJava extends JavaServer implements Content {
             return Result.error(Result.ErrorCode.FORBIDDEN);
         }
         Log.info("Executing a removeTracesOfUser on " + userId);
-		Hibernate.TX tx = hibernate.beginTransaction();
-		try {
+        Hibernate.TX tx = hibernate.beginTransaction();
+        try {
 
-			hibernate.sql(tx, "DELETE from Vote v where v.voterId='" + userId + "'");
+            hibernate.sql(tx, "DELETE from Vote v where v.voterId='" + userId + "'");
 
-			hibernate.sql(tx, "UPDATE Post p SET p.authorId=NULL where p.authorId='" + userId + "'");
+            hibernate.sql(tx, "UPDATE Post p SET p.authorId=NULL where p.authorId='" + userId + "'");
 
-			hibernate.commitTransaction(tx);
+            hibernate.commitTransaction(tx);
 
-		} catch (Exception e) {
+        } catch (Exception e) {
             Log.warning("Broke, when removing user trace: " + e.getMessage() + "\n");
-			hibernate.abortTransaction(tx);
-			return Result.error(Result.ErrorCode.INTERNAL_ERROR);
-		}
+            hibernate.abortTransaction(tx);
+            return Result.error(Result.ErrorCode.INTERNAL_ERROR);
+        }
         return Result.ok();
     }
 
