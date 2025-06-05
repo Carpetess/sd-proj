@@ -3,9 +3,6 @@ package fctreddit.api.data;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
-import java.util.logging.Logger;
-
-
 /**
  * Represents a User in the system
  */
