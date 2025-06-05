@@ -107,9 +107,10 @@ public class UsersJava extends JavaServer implements Users {
             if(user.getAvatarUrl()!=null){
                 if(oldUser.getAvatarUrl()!=null&&!oldUser.getAvatarUrl().equals(user.getAvatarUrl())){
                     changeReferenceOfImage(oldUser,false);
+                    if(!oldUser.getAvatarUrl().equals(user.getAvatarUrl()))
+                        changeReferenceOfImage(user,true);
                 }
-                if(!oldUser.getAvatarUrl().equals(user.getAvatarUrl()))
-                    changeReferenceOfImage(user,true);
+
             }
             oldUser.updateUser(user);
             hibernate.update(tx, oldUser);

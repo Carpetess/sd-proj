@@ -172,9 +172,10 @@ public class ContentJava extends JavaServer implements Content {
             if (post.getMediaUrl() != null) {
                 if (oldPost.getMediaUrl() != null && !oldPost.getMediaUrl().equals(post.getMediaUrl())) {
                     changeReferenceOfImage(oldPost, false);
+                    if(!oldPost.getMediaUrl().equals(post.getMediaUrl()))
+                        changeReferenceOfImage(post, true);
                 }
-                if(!oldPost.getMediaUrl().equals(post.getMediaUrl()))
-                    changeReferenceOfImage(post, true);
+
             }
 
             update(post, oldPost);
